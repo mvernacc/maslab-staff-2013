@@ -1,6 +1,8 @@
 from vision.vision import Vision
 from command.feature import Feature
 import arduino
+import cv2
+import cv
 import time
 
 ardu = arduino.Arduino()
@@ -22,7 +24,7 @@ try:
             print "No ball"
             motor_right.setSpeed(0)
             motor_left.setSpeed(0)
-        time.sleep(0.1)
+        cv2.waitKey(10)
 except KeyboardInterrupt:
     print "ending..."
     time.sleep(0.1)

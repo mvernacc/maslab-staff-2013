@@ -5,12 +5,11 @@
 import cv2
 import cv
 import numpy as np
-import sys
 from command.feature import Feature
 
 class Vision:
     def __init__(self, debug):
-        self.capture = cv2.VideoCapture(1)
+        self.capture = cv2.VideoCapture(0)
         self.image = None # the latest image
         self.debug = debug # a boolean - true=debug mode, draws images
         if debug:
