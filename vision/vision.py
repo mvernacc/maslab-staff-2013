@@ -8,18 +8,26 @@ import numpy as np
 from command.feature import Feature
 
 class Vision:
-    def __init__(self, debug):
-        self.capture = cv2.VideoCapture(0)
+    def __init__(self, red_side, debug):
+        """Makes a new instance of the Vision class.
+           Arguments:
+            - red_side - What side of the course the robot is on / what color
+                the balls are. true --> look for red balls, false --> look
+                for green balls.
+            - debug - Whether the program produces debuggin output. true --> pro                gram draws images and prints output, false --> program does not
+                draw images or print output (faster)"""
+        self.capture = cv2.VideoCapture(1)
         self.image = None # the latest image
+        self.red_side = red_side
         self.debug = debug # a boolean - true=debug mode, draws images
         if debug:
                 self.win_orig = 'Original Image'
-                self.win_red = 'Red Regions'
-                self.win_red_noise = 'Red Regions Less Noise'
+                self.win_color = 'Ball-Colored Regions'
+                self.win_color_filt = 'Filtered Ball-Colored Regions'
                 self.win_edges = 'Edges'
                 cv2.namedWindow(self.win_orig)
-                cv2.namedWindow(self.win_red)
-                cv2.namedWindow(self.win_red_noise)
+                cv2.namedWindow(self.win_color)
+                cv2.namedWindow(self.win_color_filt)
                 cv2.namedWindow(self.win_edges)
     def grab_frame(self):
         discard, self.image = self.capture.read()
@@ -42,24 +50,40 @@ class Vision:
         red_image_2 = cv2.inRange(hsv_image, red_hsv_min_2, red_hsv_max_2)
         return cv2.bitwise_or(red_image_1, red_image_2)
 
+    def pick_green(self, image):
+        """Picks Out the Green Portions of an image"""
+        # convert the image to HSV, as this colorspace is more robust to changes in lighting
+        hsv_image = cv2.cvtColor(image, cv.CV_BGR2HSV) 
+        # Identify the green portions of the image. 
+        hue = (45, 75) # range of hue (red is centered at 0 or 180)
+        sat = (30, 255) # range of saturation
+        val = (3, 250)  # range of value
+        green_hsv_min = np.array([hue[0], sat[0], val[0]], np.uint8)
+        green_hsv_max = np.array([hue[1], sat[1], val[1]], np.uint8)
+        return cv2.inRange(hsv_image, green_hsv_min, green_hsv_max)
+
     def get_feat(self):
         """Grabs a new image an idenifies features in it"""
         self.grab_frame()
-        #Identify the red regions
-        red_image = self.pick_red(self.image)
-        # show the red regions
-        if self.debug: cv2.imshow(self.win_red, red_image)
+        #Identify the ball-colored regions
+        ball_color_image = None
+        if self.red_side:
+            ball_color_image = self.pick_red(self.image)
+        else:
+            ball_color_image = self.pick_green(self.image)
+        # show the ball-colored regions
+        if self.debug: cv2.imshow(self.win_color, ball_color_image)
 # Reduce Noise with morphological operations
-        height, width= red_image.shape
+        height, width= ball_color_image.shape
         morph_size = width/100
         element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (morph_size, morph_size))
-        red_morph_image = cv2.erode(red_image, element)
-        red_morph_image = cv2.dilate(red_morph_image, element)
-        red_morph_image = cv2.dilate(red_morph_image, element)
+        filtered_image = cv2.erode(ball_color_image, element)
+        filtered_image = cv2.dilate(filtered_image, element)
+        filtered_image = cv2.dilate(filtered_image, element)
 # Show the noise-reduced image
-        if self.debug: cv2.imshow(self.win_red_noise, red_morph_image)
+        if self.debug: cv2.imshow(self.win_color_filt, filtered_image)
 # Do Canny
-        edges = cv2.Canny(red_morph_image, 0, 251)
+        edges = cv2.Canny(filtered_image, 0, 251)
         if self.debug: cv2.imshow(self.win_edges, edges)
 # Do Hough Transform 
 #circles = cv2.HoughCircles(edges, cv.CV_HOUGH_GRADIENT, 2, width/50 )
