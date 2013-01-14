@@ -1,8 +1,10 @@
+from vision.vision import Vision
+from command.feature import Feature
 import threading
 import time
 import arduino # Import the interface library
 import robotBehavior
-
+import sys, getopt
 
 def main(argv):
 
@@ -48,51 +50,17 @@ def main(argv):
         print "Stopping"
         global running
         running = False
-        robot.pause()
+        robot.end()
         ard.stop()
-    timer = threading.Timer(360.0, halt)
-        # Run the halt function after 360 seconds in a different thread
+    timer = threading.Timer(60.0, halt)
+        # Run the halt function after 180 seconds in a different thread
     timer.start() # Actually start the timer, the time counts from this point on                                                                                                                                       
 
 
     ####################################run code##############################
-    timeout = 5
-    speed = 70
 
     ard.run()  # Start the thread that interacts with the Arduino itself
-    robot.run(timeout, speed)
-        # wander at 5 second intervals, speed of "70"
-    
-    while running:
-        try:
-            feats = vis.get_feat()
-            if len(feats) > 0:
-                robot.ballFollow()
-            else:
-                print "No ball"                
-                robot.wander(timeout,speed)
-                robot.search(1.5*timeout,speed)
-            #cv2.waitKey(20)???
-        except KeyboardInterrupt:
-            print "ending..."
-            time.sleep(0.1)
-            motor_right.setSpeed(0)
-            motor_left.setSpeed(0)
-            time.sleep(0.1)
-            #ard.stop()
-            halt()
-
-        right = bump_right.getValue()
-            # should return a TRUE if high, FALSE if low
-        left = bump_left.getValue()
-        # time.sleep(0.1)
-        if right == True:
-            robot.turn("left", speed)
-        elif left == True:
-            robot.turn("right", speed)
-        else:
-            pass
-
-    
+    robot.search() # start the robot out in the search state
+   
 if __name__ == "__main__":
     main(sys.argv[1:])

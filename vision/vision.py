@@ -101,6 +101,7 @@ class Vision:
                 angle = 30.0*(1.0 - 2.0*x/width)
                 feats.append( Feature(0, angle, Feature.BALL) )
         if self.debug: cv2.imshow(self.win_orig, self.image)
+        if self.debug: cv2.waitKey(10)
         return feats
 # vis = Vision(True)
 # while(True):
