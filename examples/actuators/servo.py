@@ -13,10 +13,12 @@ ard.run()  # Run the Arduino communication thread
 
 while True:
     # Sweep the servo back and forth
-    for i in range(-45, 45):
+    for i in range(0, 120, 10):
         servo.setAngle(i)
-        time.sleep(0.05)
-    # Reset
-    servo.setAngle(-45)
-    time.sleep(1)
+        print "Angle", i
+        time.sleep(0.1)
+    for i in range(120, 0, -10):
+        servo.setAngle(i)
+        print "Angle", i
+        time.sleep(0.1)
     

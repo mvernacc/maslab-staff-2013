@@ -19,6 +19,7 @@ class Arduino(threading.Thread):
     motorSpeeds = []
     stepperSteps = []
     servoAngles = []
+    imuVals = []
 
     # Arrays for keeping track of ports
     digitalInputPorts = []
@@ -28,6 +29,7 @@ class Arduino(threading.Thread):
     motorPorts = []
     stepperPorts = []
     servoPorts = []
+    imus = []
 
     # Initialize the thread and variables
     def __init__(self):
@@ -68,6 +70,94 @@ class Arduino(threading.Thread):
         print "Failed to connect"
         return False
 
+    # This function builds and writes the output packet to be
+    # sent to the arduino
+    def writeOutputPacket(self):
+        # Build the command packet
+        # Command packet format:
+        # An1234Bm5678;
+        # A, B = Command modes (M - motor command, S - servo command, ...)
+        #        Command modes tell the arduino how to interpret what comes
+        #        after it.
+        # n, m = Number of arguments. This tells the arduino how many
+        #        arguments to look for and parse.
+        # 1234, 5678 = Arguments. These depend on the command, but specify
+        #        things like motor speed and servo angle. Note - in many
+        #        places we add 1 before sending an argument and subtract
+        #        1 on the other end. This is because we can't send the null
+        #        character across.
+        # ; = Special command mode that means "end of packet"
+        output = ""
+        output += "M" + chr(len(self.motorSpeeds))
+        for i in self.motorSpeeds:
+            output += chr(i)
+        output += "T" + chr(len(self.stepperSteps))
+        for step in self.stepperSteps:
+            output += chr(int(step))
+        output += "S" + chr(len(self.servoAngles))
+        for i in self.servoAngles:
+            output += chr(i) # Make it unsigned and send
+        output += "D" + chr(len(self.digitalOutputs))
+        for i in self.digitalOutputs:
+            output += chr(i)
+        output += "A" + chr(len(self.analogOutputs))
+        for i in self.analogOutputs:
+            output += chr(i)
+        output += ";"
+        self.port.write(output)
+        #print output
+
+    # This function reads and interprets a packet received from the arduino
+    # and saves any input data into the appropriate arrays
+    def readInputPacket(self):
+        # Read in the data packet that the arduino sends back
+        # Data packet format is identical to the command packet format,
+        # except the modes are different (ex. 'D' for digital instead of
+        # 'M' for motor)
+        # Possible modes:
+        #     'D' - Digital sensor data
+        #     'A' - Analog sensor data
+        done = False
+        while (not done):
+            # Read in the mode
+            #print "Reading mode"
+            mode = self.serialRead()
+            if (mode == chr(0)):
+                print "Timeout"
+                break
+            #print "Got:", mode
+
+            # Process arguments based on mode
+            # Digital
+            if (mode == 'D'):
+                length = ord(self.serialRead())
+                # Fill the digitalSensors array with incoming data
+                for i in range(length):
+                    # If we read in a 1, then the digital input is HIGH
+                    self.digitalInputs[i] = ord(self.serialRead())==1
+            # Analog
+            elif (mode == 'A'):
+                length = ord(self.serialRead())
+                # Fill the analogSensors array with incoming data
+                for i in range(length):
+                    byte0 = ord(self.serialRead())
+                    byte1 = ord(self.serialRead())
+                    self.analogInputs[i] = byte1 * 256 + byte0
+            # IMU
+            elif (mode == 'U'):
+                # Read compass (2 bytes)
+                byte0 = ord(self.serialRead())
+                byte1 = ord(self.serialRead())
+                compass = byte1 * 256 + byte0
+                # Read accel (3 bytes)
+                x = ord(self.serialRead())
+                y = ord(self.serialRead())
+                z = ord(self.serialRead())
+                self.imuVals[0] = (compass, x, y, z)
+            # End of packet
+            elif (mode == ';'):
+                done = True
+
     # This function constantly sends out a command packet to the arduino
     # (based on the states of all the arrays) then blocks until it receives
     # a data packet in response (and sets the appropriate arrays based on it).
@@ -77,77 +167,13 @@ class Arduino(threading.Thread):
         # If killReceived is set to true, we want to kill this thread
         while not self.killReceived:
             #print "Packet -- writing"
-            # Build the command packet
-            # Command packet format:
-            # An1234Bm5678;
-            # A, B = Command modes (M - motor command, S - servo command, ...)
-            #        Command modes tell the arduino how to interpret what comes
-            #        after it.
-            # n, m = Number of arguments. This tells the arduino how many
-            #        arguments to look for and parse.
-            # 1234, 5678 = Arguments. These depend on the command, but specify
-            #        things like motor speed and servo angle. Note - in many
-            #        places we add 1 before sending an argument and subtract
-            #        1 on the other end. This is because we can't send the null
-            #        character across.
-            # ; = Special command mode that means "end of packet"
-            output = ""
-            output += "M" + chr(len(self.motorSpeeds) + 1)
-            for i in self.motorSpeeds:
-                output += chr(i+1)
-            output += "T" + chr(len(self.stepperSteps) + 1)
-            for step in self.stepperSteps:
-                output += chr(int(step))
-            output += "S" + chr(len(self.servoAngles) + 1)
-            for i in self.servoAngles:
-                output += chr((i%255)+1) # Make it unsigned and send
-            output += "D" + chr(len(self.digitalOutputs) + 1)
-            for i in self.digitalOutputs:
-                output += chr(i+1)
-            output += "A" + chr(len(self.analogOutputs) + 1)
-            for i in self.analogOutputs:
-                output += chr(i+1)
-            output += ";"
-            self.port.write(output)
-            #print output
+            self.writeOutputPacket()
 
             #print "Packet -- reading"
-            # Read in the data packet that the arduino sends back
-            # Data packet format is identical to the command packet format,
-            # except the modes are different (ex. 'D' for digital instead of
-            # 'M' for motor)
-            # Possible modes:
-            #     'D' - Digital sensor data
-            #     'A' - Analog sensor data
-            done = False
-            while (not done):
-                # Read in the mode
-                #print "Reading mode"
-                mode = self.serialRead()
-                if (mode == chr(0)):
-                    print "Timeout"
-                    break
-                #print "Got:", mode
+            self.readInputPacket()
 
-                # Process arguments based on mode
-                # Digital
-                if (mode == 'D'):
-                    length = ord(self.serialRead())-1
-                    # Fill the digitalSensors array with incoming data
-                    for i in range(length):
-                        # If we read in a 2, then the digital input is HIGH
-                        self.digitalInputs[i] = ord(self.serialRead())==2
-                # Analog
-                elif (mode == 'A'):
-                    length = ord(self.serialRead())-1
-                    # Fill the analogSensors array with incoming data
-                    for i in range(length):
-                        byte0 = ord(self.serialRead())-1
-                        byte1 = ord(self.serialRead())-1
-                        self.analogInputs[i] = byte1 * 256 + byte0
-                # End of packet
-                elif (mode == ';'):
-                    done = True
+        # If we get here, we received the kill signal
+        self.cleanup()
 
     # Send initializing data to the arduino, so that it can dynamically set up
     # the actuators and sensors in memory
@@ -158,7 +184,7 @@ class Arduino(threading.Thread):
         # Motor component of initializing
         output += "M"
         numMotors = len(self.motorPorts)
-        output += chr(numMotors+1)
+        output += chr(numMotors)
         for i in range(numMotors):
             current, direction, pwm = self.motorPorts[i]
             output += chr(current)
@@ -167,7 +193,7 @@ class Arduino(threading.Thread):
         # Stepper component of initializing
         output += "T"
         numSteppers = len(self.stepperPorts)
-        output += chr(numSteppers+1)
+        output += chr(numSteppers)
         for i in range(numSteppers):
             stepPin, enablePin = self.stepperPorts[i]
             output += chr(stepPin)
@@ -175,33 +201,36 @@ class Arduino(threading.Thread):
         # Servo component of initializing
         output += "S"
         numServos = len(self.servoPorts)
-        output += chr(numServos+1)
+        output += chr(numServos)
         for i in range(numServos):
             output+= chr(self.servoPorts[i])
         # Digital input component of initializing
         output += "DI"
         numDigital = len(self.digitalInputPorts)
-        output += chr(numDigital+1)
+        output += chr(numDigital)
         for i in range(numDigital):
             output+= chr(self.digitalInputPorts[i])
         # Analog input component of initializing
         output += "AI"
         numAnalog = len(self.analogInputPorts)
-        output += chr(numAnalog+1)
+        output += chr(numAnalog)
         for i in range(numAnalog):
             output += chr(self.analogInputPorts[i])
         # Digital output component of initializing
         output += "DO"
         numDigital = len(self.digitalOutputPorts)
-        output += chr(numDigital+1)
+        output += chr(numDigital)
         for i in range(numDigital):
             output+= chr(self.digitalOutputPorts[i])
         # Analog input component of initializing
         output += "AO"
         numAnalog = len(self.analogOutputPorts)
-        output += chr(numAnalog+1)
+        output += chr(numAnalog)
         for i in range(numAnalog):
             output += chr(self.analogOutputPorts[i])
+        # IMU component of initializing
+        if len(self.imus) > 0:
+            output += "U"
         # Terminate the command packet
         output += ";"
 
@@ -209,6 +238,27 @@ class Arduino(threading.Thread):
         self.port.flush()
 
         print "Init", output
+
+    # Build a packet that stops all motors and actuators and
+    # flush it. This is called when the arduino thread is
+    # about to die. It resolves the problem of the motor
+    # controller continuing to run the motors after the
+    # Arduino stops sending commands.
+    def cleanup(self):
+        # First, set all of our arrays to reasonable end values
+        def zero(val):
+            return 0
+        self.digitalOutputs = map(zero, self.digitalOutputs)
+        self.analogOutputs = map(zero, self.analogOutputs)
+        self.motorSpeeds = map(zero, self.motorSpeeds)
+        self.stepperSteps = map(zero, self.stepperSteps)
+        # Don't modify servos, since this will cause them to move,
+        # rather than stop.
+        
+        # Now send the final output packet
+        self.writeOutputPacket()
+        # And flush the serial connection
+        self.port.flush()
     
     # Wrapper on port.read that checks for debugging
     # messages from the Arduino and prints them out
@@ -246,11 +296,11 @@ class Arduino(threading.Thread):
         else:
             self.digitalOutputs[index] = value
     def getDigitalInput(self, index):
-        out = self.digitalInputs[index]
-        return out
+        return self.digitalInputs[index]
     def getAnalogInput(self, index):
-        out = self.analogInputs[index]
-        return out
+        return self.analogInputs[index]
+    def getIMUVals(self, index):
+        return self.imuVals[index]
 
     # Functions to set up the components (these are called through the classes
     # below, don't call these yourself!)
@@ -282,6 +332,15 @@ class Arduino(threading.Thread):
         self.servoPorts.append(port)
         self.servoAngles.append(0)
         return len(self.servoPorts) - 1
+    def addIMU(self):
+        # If we already have an IMU, we can only have one, so just
+        # return the index to that
+        if len(self.imus) > 0:
+            return 0
+        else:
+            self.imus = [True]
+            self.imuVals = [(0, 0, 0, 0)]
+            return 0
 
 # Class to interact with a servo
 class Servo:
@@ -289,6 +348,11 @@ class Servo:
         self.arduino = arduino
         self.index = self.arduino.addServo(port)
     def setAngle(self, angle):
+        # Clamp to [0, 180]
+        if angle < 0:
+            angle = 0
+        elif angle > 180:
+            angle = 180
         self.arduino.setServoAngle(self.index, angle)
 
 # Class to interact with a motor
@@ -350,3 +414,11 @@ class AnalogOutput:
         self.index = self.arduino.addAnalogOutput(port)
     def setValue(self, value):
         self.arduino.setAnalogOutput(self.index, value)
+
+# Class to interact with an IMU
+class IMU:
+    def __init__ (self, arduino):
+        self.arduino = arduino
+        self.index = self.arduino.addIMU()
+    def getRawValues(self):
+        return self.arduino.getIMUVals(self.index)

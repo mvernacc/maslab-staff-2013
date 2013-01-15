@@ -1,5 +1,8 @@
 #include <SoftwareSerial.h>
 #include <Servo.h>
+#include <Wire.h>
+#include <HMC5883L.h>
+#include <ADXL345.h>
 
 // Specify the chars for the modes
 #define motorChar 'M'
@@ -9,6 +12,7 @@
 #define analogChar 'A'
 #define inputChar 'I' // For digital/analog input vs. output (init only)
 #define outputChar 'O' // For digital/analog input vs. output (init only)
+#define imuChar 'U'
 #define initChar 'I'
 #define doneChar ';'
 
@@ -80,6 +84,12 @@ int* digitalOutputPorts;
 // Dynamic array of all the analog ports
 int* analogInputPorts;
 int* analogOutputPorts;
+// Fixed compass and accelerometer objects, and other variables
+// that go with them
+HMC5883L compass;
+ADXL345 acc;
+const float alpha = 0.5;
+double fXg = 0, fYg = 0, fZg = 0;
 
 // Keeps track of how many of each thing we have
 int numMotors = 0;
@@ -89,39 +99,9 @@ int numDigitalInput = 0;
 int numDigitalOutput = 0;
 int numAnalogInput = 0;
 int numAnalogOutput = 0;
+int numImus = 0;
 
 int resetCounter = 0;
-
-
-// The dynamically sized return string
-char* retVal;
-int retIndex;
-
-// Helper function to keep track of retIndex and use it to write
-// a character to the correct location in the retVal array
-void writeToRetVal(char c)
-{
-  retVal[retIndex] = c;
-  retIndex++;
-}
-
-
-// Helper function to end our retVal string with the ';' command
-// and a null character
-void endRetVal()
-{
-  retVal[retIndex] = ';';
-  retVal[retIndex+1] = 0;
-}
-
-// Helper function to send the retVal through the serial connection
-// as well as reset the retIndex variable
-void sendRetVal()
-{
-  Serial.print(retVal);
-  Serial.flush();
-  retIndex = 0;
-}
 
 // Define a serial read that actually blocks
 char serialRead()
@@ -139,8 +119,6 @@ void motorInit()
   Motor* tempMotor;
   
   // Free up any allocated memory from before
-  // Note: there's a memory leak here - the NewSoftSerial objects
-  // never get free'd. I'm too lazy to fix it :P
   for (int i = 0; i < numMotors; i++)
   {
     free(motors[i]);
@@ -148,7 +126,7 @@ void motorInit()
   free(motors);
 
   // Read in the new numMCs
-  numMotors = (int) serialRead() - 1;
+  numMotors = (int) serialRead();
   // Reallocate the array
   motors = (Motor**) malloc(sizeof(Motor*) * numMotors);
   for (int i = 0; i < numMotors; i++)
@@ -177,7 +155,7 @@ void stepperInit()
   free(steppers);
 
   // Read in the new numSteppers
-  numSteppers = (int) serialRead() - 1;
+  numSteppers = (int) serialRead();
   // Reallocate the stepper array
   steppers = (Stepper**) malloc(sizeof(Stepper*) * numSteppers);
   for (int i = 0; i < numSteppers; i++)
@@ -204,7 +182,7 @@ void servoInit()
   free(servos);
   
   // Read in the new numServos
-  numServos = (int) serialRead() - 1;
+  numServos = (int) serialRead();
   // Reallocate the servo array
   servos = (Servo**) malloc(sizeof(Servo*) * numServos);
   for (int i = 0; i < numServos; i++)
@@ -219,7 +197,7 @@ void servoInit()
 // Handles the digital sensor initialization
 void digitalInputInit()
 {
-  numDigitalInput = (int) serialRead() - 1;
+  numDigitalInput = (int) serialRead();
   digitalInputPorts = (int*) malloc (sizeof(int) * numDigitalInput);
   for (int i = 0; i < numDigitalInput; i++)
   {
@@ -230,7 +208,7 @@ void digitalInputInit()
 // Handles the digital output initialization
 void digitalOutputInit()
 {
-  numDigitalOutput = (int) serialRead() - 1;
+  numDigitalOutput = (int) serialRead();
   digitalOutputPorts = (int*) malloc (sizeof(int) * numDigitalOutput);
   for (int i = 0; i < numDigitalOutput; i++)
   {
@@ -242,7 +220,7 @@ void digitalOutputInit()
 // Handles the analog sensor initialization
 void analogInputInit()
 {
-  numAnalogInput = (int) serialRead() - 1;
+  numAnalogInput = (int) serialRead();
   analogInputPorts = (int*) malloc (sizeof(int) * numAnalogInput);
   for (int i = 0; i < numAnalogInput; i++)
   {
@@ -253,7 +231,7 @@ void analogInputInit()
 // Handles the analog output initialization
 void analogOutputInit()
 {
-  numAnalogOutput = (int) serialRead() - 1;
+  numAnalogOutput = (int) serialRead();
   analogOutputPorts = (int*) malloc (sizeof(int) * numAnalogOutput);
   for (int i = 0; i < numAnalogOutput; i++)
   {
@@ -292,6 +270,24 @@ void analogInit()
   }
 }
 
+// Initialize the IMU on the I2C interface
+void imuInit()
+{
+  // Initialize the I2C interface
+  Wire.begin();
+  
+  // Set up the HMC5883L compass
+  compass = HMC5883L();
+  compass.SetScale(1.3);
+  compass.SetMeasurementMode(Measurement_Continuous);
+  
+  // Set up the ADXL345 accelerometer
+  acc.begin();
+  
+  // Update numImus, so we know to start sending IMU data back
+  numImus = 1;
+}
+
 // Init function which is run whenever the python code needs to
 // initialize all of the ports for our sensors and actuators
 void initAll()
@@ -318,16 +314,11 @@ void initAll()
       case analogChar:
         analogInit();
         break;
+      case imuChar:
+        imuInit();
+        break;
     }
   }
-
-  // Initialize retVal and retIndex
-  // 2 bytes for 'Dn', numDigital bytes for the following arguments,
-  // then 2 bytes for 'Am', 2*numAnalog bytes because each analog
-  // input is 2 bytes long. Finally, 2 bytes for the ';' and the
-  // null character at the end.
-  retVal = (char*) malloc(((2+numDigitalInput) + (2+2*numAnalogInput) + 2) * sizeof(char));
-  retIndex = 0;
 }
 
 // Special function run when the arduino is first connected to power
@@ -412,24 +403,24 @@ void loop()
 
     // Write digital data
     // Add our mode character
-    writeToRetVal(digitalChar);
+    Serial.write(digitalChar);
     // Add the number of sensors
     // Add 1 because 0 terminates the string
-    writeToRetVal((char) numDigitalInput+1);
+    Serial.write((char)numDigitalInput);
     // Add all the sensor data
     for (int i = 0; i < numDigitalInput; i++)
     {
       // Digital read the ith sensor and add it's value to retVal
       // We add 1 to the value because 0 would terminate the string
-      writeToRetVal((char) digitalRead(digitalInputPorts[i])+1);
+      Serial.write((char) digitalRead(digitalInputPorts[i]));
     }
 
     // Write analog data
     // Add our mode character
-    writeToRetVal(analogChar);
+    Serial.write(analogChar);
     // Add the number of sensors
     // Add 1 because 0 terminates the string
-    writeToRetVal((char) numAnalogInput + 1);
+    Serial.write((char)numAnalogInput);
     // Add all the sensor data
     for (int i = 0; i < numAnalogInput; i++)
     {
@@ -450,15 +441,38 @@ void loop()
       }
 
       // Write the two bytes to the retVal, byte0 first
-      writeToRetVal(byte0);
-      writeToRetVal(byte1);
+      Serial.write(byte0);
+      Serial.write(byte1);
+    }
+    
+    // Write IMU data
+    if (numImus > 0)
+    {
+      // Add mode character
+      Serial.write(imuChar);
+      // Get compass heading
+      MagnetometerScaled scaled = compass.ReadScaledAxis();
+      float heading = atan2(scaled.YAxis, scaled.XAxis);
+      int headingDegrees = (int)(heading * 180/M_PI);
+      headingDegrees = headingDegrees % 360;
+      // Two bytes for the compass, lower byte first
+      Serial.write((char)(headingDegrees % 256));
+      Serial.write((char)(headingDegrees / 256));
+      // Get the accelerometer axes
+      double Xg, Yg, Zg;
+      acc.read(&Xg, &Yg, &Zg);
+      // Low pass filter
+      fXg = Xg * alpha + (fXg * (1.0 - alpha));
+      fYg = Yg * alpha + (fYg * (1.0 - alpha));
+      fZg = Zg * alpha + (fZg * (1.0 - alpha));
+      // One byte per axis
+      Serial.write((char)min((int)(fXg*256), 255));
+      Serial.write((char)min((int)(fYg*256), 255));
+      Serial.write((char)min((int)(fZg*256), 255));
     }
 
-    // Add a ';' and null terminate the retVal string
-    endRetVal();
-
-    // Send the built string
-    sendRetVal();
+    // Terminate the packet
+    Serial.write(';');
   }
 }
 
@@ -469,12 +483,12 @@ void loop()
 void moveMotors()
 {
   // Read in (and cast to an int) the number of motors
-  int numMotors = (int) serialRead() - 1;
+  int numMotors = (int) serialRead();
   // Per motor, read in the speed and call setMotorSpeed to actually
   // set it
   for (int i = 0; i < numMotors; i++)
   {
-    int s = ((int) serialRead()) - 1;
+    int s = ((int) serialRead());
     // Make s signed
     if (s > 127)
     {
@@ -488,22 +502,16 @@ void moveMotors()
 void stepSteppers()
 {
   // Read in (and cast to an int) the number of steppers
-  int numSteppers = (int) serialRead() - 1;
+  int numSteppers = (int) serialRead();
   // Per stepper, read in the steps and step it
   for (int i = 0; i < numSteppers; i++)
   {
-    int step = (int) serialRead() - 1;
+    int step = (int) serialRead();
     if (step == 1)
     {
       steppers[i]->step(100);
     }
   }
-}
-
-// Set the servo angle
-void setServoAngle(int index, int angle)
-{
-  servos[index]->write(angle);
 }
 
 // Function called to handle the servo command
@@ -514,42 +522,36 @@ void setServoAngle(int index, int angle)
 void moveServos()
 {
   // Read in (and cast to an int) the number of servos
-  int numServos = (int) serialRead() - 1;
+  int numServos = (int) serialRead();
   // Per servo, read in the angle and call setServoAngle to actually set it
   for (int i = 0; i < numServos; i++)
   {
     // Set the servo angle for the ith motor
-    int in = (int) serialRead() - 1;
-    if (in >= 128) // Make it signed
-    {
-      in -= 255;
-    }
-    // Scale to [-180, 180]
-    in *= (180.0/128.0);
-    setServoAngle(i, in);
+    int in = (int) serialRead();
+    servos[i]->write(in);
   }
 }
 
 void digitalOutput()
 {
   // Read in (and cast to an int) the number of digital outputs
-  int numDigitalOutputs = (int) serialRead() - 1;
+  int numDigitalOutputs = (int) serialRead();
   // Per output, read in the value, and set the digital pin
   for (int i = 0; i < numDigitalOutputs; i++)
   {
       // Write the digital output
-      int val = (int) serialRead() - 1;
+      int val = (int) serialRead();
       digitalWrite(digitalOutputPorts[i], (val==0) ? LOW : HIGH);
   }
 }
 void analogOutput()
 {
   // Read in (and cast to an int) the number of analog outputs
-  int numAnalogOutputs = (int) serialRead() - 1;
+  int numAnalogOutputs = (int) serialRead();
   // Per output, read in the value, and set the analog pin
   for (int i = 0; i < numAnalogOutputs; i++)
   {
       // Write the analog output
-      analogWrite(analogOutputPorts[i], ((int)serialRead() - 1)*(1023.0/255.0));
+      analogWrite(analogOutputPorts[i], ((int)serialRead())*(1023.0/255.0));
   }
 }
