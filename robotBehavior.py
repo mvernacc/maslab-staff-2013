@@ -4,7 +4,6 @@ import arduino # Import the interface library
 
 from vision.vision import Vision
 from command.feature import Feature
-import arduino
 import cv2
 import cv
 import sys, getopt
@@ -12,15 +11,41 @@ import sys, getopt
 
 class Robot():
     
-    def __init__(self, arduino, mRight, mLeft, vision):
+    def __init__(self, arduino, vision):
         
         self.ard = arduino # Create the Arduino object
 
-        self.motor_right = mRight
-        self.motor_left = mLeft
+        # Create other actuators, sensors, etc.
+        motorRight = arduino.Motor(ard, 0, 9, 8)
+            # Motor with pwm output on pin 8, direction pin on digital pin 9, and current sensing pin on pin A0
+        motorLeft = arduino.Motor(ard, 1, 11, 10)
+            # Motor with pwm output on pin 10, direction pin on digital pin 11, and current sensing pin on pin A1
+        #motorPickUp = arduino.Motor(ard, current, direction, pwm)
+        #motorTower = arduino.Motor(ard, current, direction, pwm)
+
+        #servoGate = arduino.Servo(ard, pwm)
+
+        #bumpFrontRight = arduino.DigitalInput(ard, 22) # Digital input on pin 22
+        #bumpFrontLeft = arduino.DigitalInput(ard, 25) # Digital input on pin 23
+        #bumpBackRight = arduino.DigitalInput(ard, 26)
+        #bumpBackLeft = arduino.DigitalInput(ard, 29)
+
+        #onOff = arduino.DigitalInput(ard,)
+        #redGreen = arduino.DigitalInput(ard,)
+
+        #nirRight = arduino.AnalogInput(ard,)
+        #nirLeft = arduino.AnalogInput(ard,)
+        #firRight = arduino.AnalogInput(ard,)
+        #firRight = arduino.AnalogInput(ard,)
+        
+        imuSCL = arduino.AnalogInput(ard, 5)  # Analog input on pin A5
+        imuSDA = arduino.AnalogInput(ard, 4)  # Analog input on pin A4
+
         self.vis = vision
+
         self.searching = False
         self.running = True
+
     def forward(self, speed):
         # Sets motors to go forward
         self.motor_right.setSpeed(-speed)
@@ -40,16 +65,17 @@ class Robot():
         self.motor_left.setSpeed(speed)
         time.sleep(1)
         self.pause()
+
     def turn(self, side, speed):
         # turn robot
         if side == "left":
             self.motor_right.setSpeed(-speed)
             self.motor_left.setSpeed(speed)
-            time.sleep(0.5)
+            time.sleep(1)
         else:
             self.motor_right.setSpeed(speed)
             self.motor_left.setSpeed(-speed)
-            time.sleep(0.5)
+            time.sleep(1)
         self.pause()
         
     def wander(self):
@@ -91,6 +117,7 @@ class Robot():
                     self.wander()
             except KeyboardInterrupt:
                 self.end()
+
     def ballFollow(self):
         print "state = ball follow"
         feats = self.vis.get_feat()
@@ -109,6 +136,33 @@ class Robot():
             except KeyboardInterrupt:
                 self.end()
 
+    def goTo(self, feat):
+        # feats = self.vis.get_feat()
+        # go to feature
+
+    def goFarAway(self):
+        # drives to place farthest away, while stopping in the middle and scanning
+        # dest = farthest open space
+        # drive half way
+        # scan
+
+    def pushButton(self):  # pushes the green button
+        self.align()
+        self.forward()
+
+    def shoot(self):    # shoots balls from tower
+        pass
+
+    def doubleCheck():
+        self.wallFollow()
+        self.scan()
+
+    def explore(self):
+        if !repeatedBarcodes #unique barcodes
+            self.wander()
+        else:
+            self.goFarAway()
+            
     def end(self):
         print "robot stopping now!"
         self.running = False
