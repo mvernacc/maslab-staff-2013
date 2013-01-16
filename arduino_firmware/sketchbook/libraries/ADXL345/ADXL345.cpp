@@ -9,7 +9,7 @@
 *                                                                               *
 *********************************************************************************/
 
-#include <ADXL345.h>
+#include "ADXL345.h"
 #include <Wire.h>"
 
 int ADXL345::writeRegister(byte reg_addr, int nbytes, byte *buffer)

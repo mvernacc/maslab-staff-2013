@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // Reference the I2C Library
 #include <Wire.h>
 // Reference the HMC5883L Compass Library
-#include <HMC5883L.h>
+#include "HMC5883L.h"
 
 // Store our compass as a variable.
 HMC5883L compass;
