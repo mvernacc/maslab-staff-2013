@@ -1,8 +1,8 @@
 #include <SoftwareSerial.h>
 #include <Servo.h>
 #include <Wire.h>
-#include <HMC5883L.h>
-#include <ADXL345.h>
+#include "HMC5883L.h"
+#include "ADXL345.h"
 
 // Specify the chars for the modes
 #define motorChar 'M'
