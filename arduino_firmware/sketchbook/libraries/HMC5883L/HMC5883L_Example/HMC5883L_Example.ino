@@ -94,23 +94,24 @@ void loop()
 // Output the data down the serial port.
 void Output(MagnetometerRaw raw, MagnetometerScaled scaled, float heading, float headingDegrees)
 {
-   Serial.print("Raw:\t");
-   Serial.print(raw.XAxis);
-   Serial.print("   ");   
-   Serial.print(raw.YAxis);
-   Serial.print("   ");   
-   Serial.print(raw.ZAxis);
-   Serial.print("   \tScaled:\t");
+   //Serial.print("Raw:\t");
+   //Serial.print(raw.XAxis);
+   //Serial.print("   ");   
+   //Serial.print(raw.YAxis);
+   //Serial.print("   ");   
+   //Serial.print(raw.ZAxis);
+   //Serial.print("   \tScaled:\t");
    
-   Serial.print(scaled.XAxis);
-   Serial.print("   ");   
-   Serial.print(scaled.YAxis);
-   Serial.print("   ");   
-   Serial.print(scaled.ZAxis);
+   //Serial.print(scaled.XAxis);
+   //Serial.print("   ");   
+   //Serial.print(scaled.YAxis);
+   //Serial.print("   ");   
+   //Serial.print(scaled.ZAxis);
 
    Serial.print("   \tHeading:\t");
    Serial.print(heading);
    Serial.print(" Radians   \t");
    Serial.print(headingDegrees);
    Serial.println(" Degrees   \t");
+   delay(200);
 }
