@@ -499,17 +499,19 @@ void loop()
         if (yawRate >= rotationThreshold || yawRate <= -rotationThreshold)
           yawAngle += ((long)(prevYawRate + yawRate)*10)/2000;
         prevYawRate = yawRate;
-    
-        if (yawAngle < 0)
-          yawAngle += 360;
-        else if (yawAngle > 359)
-          yawAngle -= 360;
       }
     }
     
     int alpha = 5;
     long finalHeading = (alpha/(alpha+1))*headingDegrees + (1/(alpha+1))*yawAngle;
-    
+
+    finalHeading = finalHeading % 360;        
+/*        if (yawAngle < 0)
+          yawAngle += 360;
+        else if (yawAngle > 359)
+          yawAngle -= 360;*/
+          
+    Serial.write((char)finalHeading);
 
     // Terminate the packet
     Serial.write(';');
