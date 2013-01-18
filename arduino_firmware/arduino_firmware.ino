@@ -332,6 +332,7 @@ void setup()
   Serial.begin(9600);
   // Clear the buffer
   Serial.flush();
+  Wire.begin();
 }
 
 //defining things
@@ -502,8 +503,8 @@ void loop()
       }
     }
     
-    int alpha = 5;
-    long finalHeading = (alpha/(alpha+1))*headingDegrees + (1/(alpha+1))*yawAngle;
+    int filter = 5;
+    long finalHeading = (filter/(filter+1))*headingDegrees + (1/(filter+1))*yawAngle;
 
     finalHeading = finalHeading % 360;        
 /*        if (yawAngle < 0)
