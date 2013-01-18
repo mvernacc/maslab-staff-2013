@@ -153,7 +153,11 @@ class Arduino(threading.Thread):
                 x = ord(self.serialRead())
                 y = ord(self.serialRead())
                 z = ord(self.serialRead())
-                self.imuVals[0] = (compass, x, y, z)
+                # Read gyro (1 byte)
+                byte0 = ord(self.serialRead())
+                byte1 = ord(self.serialRead())
+                yaw = byte1 * 256 + byte0
+                self.imuVals[0] = (compass, x, y, z, yaw)
             # End of packet
             elif (mode == ';'):
                 done = True

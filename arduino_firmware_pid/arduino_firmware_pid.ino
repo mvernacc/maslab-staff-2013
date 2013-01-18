@@ -3,6 +3,7 @@
 #include <Wire.h>
 #include "HMC5883L.h"
 #include "ADXL345.h"
+#include "L3G4200D.h"
 
 // Specify the chars for the modes
 #define motorChar 'M'
@@ -96,6 +97,12 @@ HMC5883L compass;
 ADXL345 acc;
 const float alpha = 0.5;
 double fXg = 0, fYg = 0, fZg = 0;
+// Fixed gyro object
+L3G4200D gyro;
+int time = millis();
+long yawRate, prevYawRate = 0;
+long yawAngle = 0;
+int rotationThreshold = 100;
 
 // Keeps track of how many of each thing we have
 int numMotors = 0;
@@ -291,6 +298,9 @@ void imuInit()
   // Set up the ADXL345 accelerometer
   acc.begin();
   
+  // Set up the L3G4200D gyro
+  gyro.enableDefault();
+  
   // Update numImus, so we know to start sending IMU data back
   numImus = 1;
 }
@@ -484,6 +494,24 @@ void loop()
       Serial.write((char)min((int)(fXg*256), 255));
       Serial.write((char)min((int)(fYg*256), 255));
       Serial.write((char)min((int)(fZg*256), 255));
+      // Get the gyro yaw angle
+      gyro.read();
+      if (millis() - time > 5)
+      {
+        // Integration every 10 ms
+        time = millis(); // Update time
+        yawRate = (long)gyro.g.z / 4;
+        if (yawRate >= rotationThreshold || yawRate <= -rotationThreshold)
+          yawAngle += ((long)(prevYawRate + yawRate) * 10) / 2000;
+        prevYawRate = yawRate;
+        if (yawAngle < 0)
+          yawAngle += 360;
+        else if (yawAngle > 359)
+          yawAngle -= 360;
+        Serial.write((char)(yawAngle % 256));
+        Serial.write((char)(yawAngle / 256));
+      }
+      delay(300);
     }
 
     // Terminate the packet
