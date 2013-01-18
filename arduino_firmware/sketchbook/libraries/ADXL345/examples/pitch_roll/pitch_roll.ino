@@ -46,5 +46,5 @@ void loop()
 	Serial.print(":");
 	Serial.println(roll);
 
-	delay(10);
+	delay(200);
 }

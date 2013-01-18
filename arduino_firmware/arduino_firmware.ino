@@ -3,6 +3,7 @@
 #include <Wire.h>
 #include "HMC5883L.h"
 #include "ADXL345.h"
+#include "L3G4200D.h"
 
 // Specify the chars for the modes
 #define motorChar 'M'
@@ -88,6 +89,7 @@ int* analogOutputPorts;
 // that go with them
 HMC5883L compass;
 ADXL345 acc;
+L3G4200D gyro;
 const float alpha = 0.5;
 double fXg = 0, fYg = 0, fZg = 0;
 
@@ -284,6 +286,8 @@ void imuInit()
   // Set up the ADXL345 accelerometer
   acc.begin();
   
+  // Set up the L3G4200D gyro
+  gyro.enableDefault();
   // Update numImus, so we know to start sending IMU data back
   numImus = 1;
 }
@@ -328,7 +332,23 @@ void setup()
   Serial.begin(9600);
   // Clear the buffer
   Serial.flush();
+  Wire.begin();
 }
+
+//defining things
+
+// Magnetometer
+MagnetometerScaled scaled = compass.ReadScaledAxis();
+float heading = atan2(scaled.YAxis, scaled.XAxis);
+int headingDegrees = (int)(heading * 180/M_PI);
+int InitHeadingDegrees = headingDegrees % 360;
+
+// Gyro set up
+int time = millis();
+long yawRate, prevYawRate = 0;
+long yawAngle = InitHeadingDegrees;
+int rotationThreshold = 100;
+
 
 // Special function that is repeatedly called during normal running
 // of the Arduino
@@ -455,7 +475,8 @@ void loop()
       float heading = atan2(scaled.YAxis, scaled.XAxis);
       int headingDegrees = (int)(heading * 180/M_PI);
       headingDegrees = headingDegrees % 360;
-      // Two bytes for the compass, lower byte first
+      
+/*      // Two bytes for the compass, lower byte first
       Serial.write((char)(headingDegrees % 256));
       Serial.write((char)(headingDegrees / 256));
       // Get the accelerometer axes
@@ -469,7 +490,29 @@ void loop()
       Serial.write((char)min((int)(fXg*256), 255));
       Serial.write((char)min((int)(fYg*256), 255));
       Serial.write((char)min((int)(fZg*256), 255));
+*/      
+
+      gyro.read();
+      if (millis()-time > 5){
+        // integration every 10 ms
+        time = millis();  //update time
+        yawRate = (long)gyro.g.z / 4;
+        if (yawRate >= rotationThreshold || yawRate <= -rotationThreshold)
+          yawAngle += ((long)(prevYawRate + yawRate)*10)/2000;
+        prevYawRate = yawRate;
+      }
     }
+    
+    int filter = 5;
+    long finalHeading = (filter/(filter+1))*headingDegrees + (1/(filter+1))*yawAngle;
+
+    finalHeading = finalHeading % 360;        
+/*        if (yawAngle < 0)
+          yawAngle += 360;
+        else if (yawAngle > 359)
+          yawAngle -= 360;*/
+          
+    Serial.write((char)finalHeading);
 
     // Terminate the packet
     Serial.write(';');
