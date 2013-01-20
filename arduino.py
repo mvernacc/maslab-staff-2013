@@ -157,7 +157,11 @@ class Arduino(threading.Thread):
                 byte0 = ord(self.serialRead())
                 byte1 = ord(self.serialRead())
                 yaw = byte1 * 256 + byte0
-                self.imuVals[0] = (compass, x, y, z, yaw)
+                # Read averaged angle (2 bytes)
+                byte0 = ord(self.serialRead())
+                byte1 = ord(self.serialRead())
+                angle = byte1*256+byte0
+                self.imuVals[0] = (compass, x, y, z, yaw,angle)
             # End of packet
             elif (mode == ';'):
                 done = True
