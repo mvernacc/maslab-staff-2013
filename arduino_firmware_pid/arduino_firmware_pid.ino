@@ -103,6 +103,8 @@ int time = millis();
 long yawRate, prevYawRate = 0;
 long yawAngle = 0;
 int rotationThreshold = 100;
+int counter = 0;
+int initHeading = 0;
 
 // Keeps track of how many of each thing we have
 int numMotors = 0;
@@ -480,6 +482,11 @@ void loop()
       float heading = atan2(scaled.YAxis, scaled.XAxis);
       int headingDegrees = (int)(heading * 180/M_PI);
       headingDegrees = headingDegrees % 360;
+      while (counter < 1){
+        yawAngle = headingDegrees;  //initialize heading
+        counter += 1;
+      }  
+      
       // Two bytes for the compass, lower byte first
       Serial.write((char)(headingDegrees % 256));
       Serial.write((char)(headingDegrees / 256));
@@ -502,18 +509,27 @@ void loop()
         time = millis(); // Update time
         yawRate = (long)gyro.g.z / 4;
         if (yawRate >= rotationThreshold || yawRate <= -rotationThreshold)
-          yawAngle += ((long)(prevYawRate + yawRate) * 10) / 2000;
+          yawAngle -= ((long)(prevYawRate + yawRate) * 10) / 2000;
         prevYawRate = yawRate;
-        if (yawAngle < 0)
+        /*if (yawAngle < 0)
           yawAngle += 360;
         else if (yawAngle > 359)
-          yawAngle -= 360;
+          yawAngle -= 360;*/
+        yawAngle = yawAngle % 360;
         Serial.write((char)(yawAngle % 256));
         Serial.write((char)(yawAngle / 256));
+        
+         // filter angle values
+        long angle;
+        long beta = 4;
+        angle = beta*yawAngle/(1 + beta) + headingDegrees/(1+ beta);
+        yawAngle = yawAngle % 360;
+        Serial.write((char)(angle % 256));
+        Serial.write((char)(angle / 256));
+        // Terminate the packet
       }
       delay(300);
     }
-
     // Terminate the packet
     Serial.write(';');
   }
