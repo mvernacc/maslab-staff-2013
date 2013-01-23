@@ -63,7 +63,7 @@ class StartState(State):
         self.robot.time.reset()
         while self.robot.time.elapsed() < 1:
             pass
-        # self.robot.motors.motorPickUp.setSpeed(60)
+        # self.robot.motors.roller.setSpeed(60)
         return ScanState(self.robot)
 
 class ScanState(State):

@@ -1,5 +1,6 @@
 import arduino # Import the interface library
 import threading, thread
+import time
 from vision.vision import Vision, Color, Feature
 
 import cv2
@@ -12,33 +13,35 @@ class Robot(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.ard = arduino.Arduino() # Create the Arduino object
+        self.motors = Motors(self.ard)
         self.bumpers = Bumpers(self.ard)
         self.ir = IR(self.ard)
-        self.motors = Motors(self.ard)
         self.vision = Vision()
         self.vision.color = Color.Red
         self.vision.features = Feature.Ball
         self.time = Timer()
 
-        #servoGate = arduino.Servo(ard, pwm)
-        #onOff = arduino.DigitalInput(ard,)
-        #redGreen = arduino.DigitalInput(ard,)
+        # servoGate = arduino.Servo(ard, pwm)
+        # onOff = arduino.DigitalInput(ard,)
+        # redGreen = arduino.DigitalInput(ard,)
 
     def run(self):
         self.ard.start()
+        time.sleep(1)
+        self.motors.start()
         self.bumpers.start()
         self.ir.start()
-        self.motors.start()
         self.vision.start()
 
     def stop(self):
+        self.motors.stop()
         self.bumpers.stop()
         self.ir.stop()
-        self.motors.stop()
         self.vision.stop()
+        time.sleep(1)
         self.ard.stop()
 
-        
+
 class Bumpers(threading.Thread):
 
     def __init__(self, ard):
@@ -92,41 +95,40 @@ class Motors(threading.Thread):
     def __init__(self, ard):
         threading.Thread.__init__(self)
 	""" Arduino must have left motor as 0th motor and right motor as 1st motor for PID. """
-        self.left = arduino.Motor(ard, 1, 11, 10)
-            # Motor with pwm output on pin 10, direction pin on digital pin 11, and current sensing pin on pin A1
-        self.right = arduino.Motor(ard, 0, 9, 8)
-            # Motor with pwm output on pin 8, direction pin on digital pin 9, and current sensing pin on pin A0
-        # self.motorPickUp = arduino.Motor(ard, current, direction, pwm)
-        # self.motorTower = arduino.Motor(ard, current, direction, pwm)
+        # Pin format: Current, Direction, PWM
+        self.left = arduino.Motor(ard, 0, 7, 6)
+        self.right = arduino.Motor(ard, 1, 9, 8)
+        # self.roller = arduino.Motor(ard, current, direction, pwm)
+        self.tower = arduino.Motor(ard, 3, 12, 11)
         
         self.currentLeft = arduino.AnalogInput(ard, 0)
         self.currentRight = arduino.AnalogInput(ard, 1)
-        self.currentPickUp = arduino.AnalogInput(ard, 2)
+        self.currentRoller = arduino.AnalogInput(ard, 2)
         self.currentTower = arduino.AnalogInput(ard, 3)
 
-        self.stallLeft = False;
-        self.stallRight = False;
-        self.stallPickUp = False;
-        self.stallTower = False;
+        self.stallLeft = False
+        self.stallRight = False
+        self.stallRoller = False
+        self.stallTower = False
 
     def run(self):
         self.running = True
-        while running:            
+        while self.running:            
             if self.currentLeft.getValue() > 800:
                 self.stallLeft = True
             if self.currentRight.getValue() > 800:
                 self.stallRight = True
-            if self.currentPickUp.getValue() > 800:
-                self.stallPickUp = True
+            if self.currentRoller.getValue() > 800:
+                self.stallRoller = True
             if self.currentTower.getValue() > 800:
-                self.stallPickUp = True
+                self.stallTower = True
 
     def stop(self):
         self.running = False
         self.right.setSpeed(0)
         self.left.setSpeed(0)
-        # self.motorPickUp.setSpeed(0)
-        # self.motorTower.setSpeed(0)
+        # self.roller.setSpeed(0)
+        self.tower.setSpeed(0)
 
 
 import time
