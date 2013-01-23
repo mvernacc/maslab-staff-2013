@@ -111,7 +111,7 @@ class FollowBallState(State):
             if True in self.robot.bumpers.bumped:
                 return ReverseState(self.robot)
             if Feature.Ball in self.robot.vision.detections:
-                ball_pos = 30 * (2 * self.robot.vision.detections[Feature.Ball] / self.robot.vision.width - 1)
+                ball_pos = 30 * (2 * self.robot.vision.detections[Feature.Ball][0] / self.robot.vision.width - 1)
                 angle = int(ball_pos)
                 self.log(str(angle))
                 self.robot.motor.motorRight.setSpeed(60 - angle)
@@ -133,7 +133,7 @@ class FollowWallState(State):
             if True in self.robot.bumpers.bumped:
                 return ReverseState(self.robot)
             if Feature.Wall in self.robot.vision.detections:
-                wall_pos = 30 * (2 * self.robot.vision.detections[Feature.Wall] / self.robot.vision.width - 1)
+                wall_pos = 30 * (2 * self.robot.vision.detections[Feature.Wall][0] / self.robot.vision.width - 1)
                 angle = int(wall_pos)
                 self.log(str(angle))
                 self.robot.motor.motorRight.setSpeed(60 - angle)
