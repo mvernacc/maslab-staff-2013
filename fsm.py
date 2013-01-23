@@ -2,7 +2,7 @@ import time
 import arduino
 import random
 import threading
-from Robot import Robot
+from robot import Robot
 from vision.vision import Vision, Color, Feature
 
 class State:
