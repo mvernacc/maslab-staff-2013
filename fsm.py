@@ -16,7 +16,7 @@ class State:
     def state_time(self):
         return time.time() - self.start_time
     def log(self, message):
-        print "  " + message
+        print self.robot.time.string() + "   " + message
 
 class FiniteStateMachine:
     def __init__(self, color = Color.Red):
@@ -31,10 +31,9 @@ class FiniteStateMachine:
 
     def start(self):
         self.state = StartState(self.robot)
-        self.start_time = time.time()
-        while self.time_elapsed() < 180:
+        while self.robot.time.elapsed() < 180:
             try:
-                print self.state.__class__.__name__
+                print self.robot.time.string() + " " + self.state.__class__.__name__
                 self.state = self.state.next_state()
             except KeyboardInterrupt:
                 self.stop()
@@ -60,8 +59,8 @@ class StartState(State):
         elif start_code[1]:
             self.robot.color = Color.Red
             self.log("Playing for RED")
-        self.fsm.start_time = time.time()
-        while self.fsm.time_elapsed() < 1:
+        self.robot.time.reset()
+        while self.robot.time.elapsed() < 1:
             pass
         self.robot.motors.motorPickUp.setSpeed(60)
         return ScanState(self.robot)
@@ -76,7 +75,7 @@ class ScanState(State):
         #     pass
         self.robot.vision.features = Feature.Ball | Feature.Wall
         while self.state_time() < 4:
-            if self.fsm.time_elapsed() < 120:
+            if self.robot.time.elapsed() < 120:
                 if Feature.Ball in self.robot.vision.detections:
                     return FollowBallState(self.robot)
             else:
@@ -107,7 +106,7 @@ class ReverseState(State):
 class FollowBallState(State):
     def next_state(self):
         # PID on ball's visual position
-        while self.fsm.time_elapsed() < 120:
+        while self.robot.time.elapsed() < 120:
             if True in self.robot.bumpers.bumped:
                 return ReverseState(self.robot)
             if Feature.Ball in self.robot.vision.detections:
@@ -129,7 +128,7 @@ class FollowBallState(State):
 class FollowWallState(State):
     def next_state(self):
         # PID on wall's visual position
-        while self.fsm.time_elapsed() < 180:
+        while self.robot.time.elapsed() < 180:
             if True in self.robot.bumpers.bumped:
                 return ReverseState(self.robot)
             if Feature.Wall in self.robot.vision.detections:

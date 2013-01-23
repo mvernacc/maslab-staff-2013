@@ -19,6 +19,7 @@ class Robot(threading.Thread):
         self.vision = Vision()
         self.vision.color = color
         self.vision.features = Feature.Ball
+        self.time = Timer()
 
         #servoGate = arduino.Servo(ard, pwm)
         #onOff = arduino.DigitalInput(ard,)
@@ -65,8 +66,8 @@ class IR(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         
-        self.nirRight = arduino.AnalogInput(ard, 4)
-        self.nirLeft = arduino.AnalogInput(ard, 5)
+        self.nirRight = arduino.DigitalInput(ard, 4)
+        self.nirLeft = arduino.DigitalInput(ard, 5)
         #self.firRight = arduino.AnalogInput(ard, 6)
         #self.firLeft = arduino.AnalogInput(ard, 7)
         
@@ -127,3 +128,17 @@ class Motors(threading.Thread):
         self.motorLeft.setSpeed(0)
         self.motorPickUp.setSpeed(0)
         self.motorTower.setSpeed(0)
+
+
+import time
+
+class Timer:
+    def __init__(self):
+        self.marker = time.time()
+    def reset(self):
+        self.marker = time.time()
+    def elapsed(self):
+        return time.time() - self.marker
+    def string(self):
+        t = self.elapsed()
+        return str(int(t / 60)) + ":" + str(int(t) % 60).zfill(2)
