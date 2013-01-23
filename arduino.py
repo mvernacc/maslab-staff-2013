@@ -166,6 +166,16 @@ class Arduino(threading.Thread):
             elif (mode == ';'):
                 done = True
 
+    def getHeading(self):
+        t = time.time() + 0.01 
+        average = 0
+        counter = 0
+        while t - time.time() > 0:
+            average + self.imuVals[0][4]
+            counter += 1
+        return average/counter
+        # needs to change if we change imuVals above.
+    
     # This function constantly sends out a command packet to the arduino
     # (based on the states of all the arrays) then blocks until it receives
     # a data packet in response (and sets the appropriate arrays based on it).
