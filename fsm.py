@@ -1,7 +1,9 @@
 import time
 import arduino
 import random
-from vision.vision import Vision
+import Robot
+import threading
+from vision.vision import Vision, Color, Feature
 
 class State:
     def __init__(self, fsm, options = None):
@@ -23,14 +25,17 @@ class FiniteStateMachine:
         self.state = None
         # Store robot properties
         self.arduino = arduino.Arduino()
-        self.motor_left = arduino.Motor(self.arduino, 0, 9, 8)
-        self.motor_right = arduino.Motor(self.arduino, 0, 7, 6)
-        self.motor_pickup = arduino.Motor(self.arduino, 0, 12, 11)
-        self.bump_left = arduino.DigitalInput(self.arduino, 23)
-        self.bump_right = arduino.DigitalInput(self.arduino, 22)
-        self.vision = Vision(True)
+        self.robot = Robot.Robot(color)
+#        self.motor_left = arduino.Motor(self.arduino, 0, 9, 8)
+#        self.motor_right = arduino.Motor(self.arduino, 0, 7, 6)
+#        self.motor_pickup = arduino.Motor(self.arduino, 0, 12, 11)
+#        self.bump_left = arduino.DigitalInput(self.arduino, 23)
+#        self.bump_right = arduino.DigitalInput(self.arduino, 22)
+#        self.vision = Vision(True)
+
         # Start Arduino thread
-        self.arduino.run()
+        #self.arduino.run()
+        self.robot.run()
         time.sleep(1)
         # a = time.time()
         # while time.time() - a < 5:
@@ -54,8 +59,10 @@ class FiniteStateMachine:
         self.motor_right.setSpeed(0)
         self.motor_left.setSpeed(0)
         self.motor_pickup.setSpeed(0)
+        self.motor_roller.setSpeed(0)
         time.sleep(0.1)
-        self.arduino.stop()
+        self.robot.stop()
+#        self.arduino.stop()
 
     def time_elapsed(self):
         return time.time() - self.start_time

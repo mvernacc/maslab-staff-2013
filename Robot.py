@@ -32,7 +32,7 @@ class Robot(threading.Thread):
         self.motor.run()
         self.visBall.detectObjects(Feature.Ball)
 
-    def stop(self):
+    def stop(self):    
         self.motorRight.setSpeed(0)
         self.motorLeft.setSpeed(0)
         self.ard.stop()
