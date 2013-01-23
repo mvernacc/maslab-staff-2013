@@ -43,6 +43,7 @@ class Robot(threading.Thread):
         
 class Bumper(threading.Thread):
     def __init__(self):
+        threading.Thread.__init__(self)
 
         self.bumpFrontRight = arduino.DigitalInput(ard, 22) # Digital input on pin 22
         self.bumpFrontLeft = arduino.DigitalInput(ard, 23) # Digital input on pin 23
@@ -67,6 +68,7 @@ class Bumper(threading.Thread):
 class IR(threading.Thread):
     
     def __init__(self):
+        threading.Thread.__init__(self)
         
         self.nirRight = arduino.AnalogInput(ard, 4)
         self.nirLeft = arduino.AnalogInput(ard, 5)
@@ -77,9 +79,8 @@ class IR(threading.Thread):
         self.nirRightVal = 0.0
         #self.firLeftVal = 0.0
         #self.firRightVal = 0.0
-        self.running = True;
-
     def run(self):
+        self.running = True;
         while self.running:
             self.nirLeftVal = self.nirLeft.getValue();
             self.nirRightVal = self.nirRight.getValue();
@@ -92,11 +93,12 @@ class IR(threading.Thread):
 
 class Motors(threading.Thread):
     def __init__(self):
-         # Create other actuators, sensors, etc.
-        self.motorRight = arduino.Motor(ard, 0, 9, 8)
-            # Motor with pwm output on pin 8, direction pin on digital pin 9, and current sensing pin on pin A0
+        threading.Thread.__init__(self)
+	""" Arduino must have left motor as 0th motor and right motor as 1st motor for PID. """
         self.motorLeft = arduino.Motor(ard, 1, 11, 10)
             # Motor with pwm output on pin 10, direction pin on digital pin 11, and current sensing pin on pin A1
+        self.motorRight = arduino.Motor(ard, 0, 9, 8)
+            # Motor with pwm output on pin 8, direction pin on digital pin 9, and current sensing pin on pin A0
         self.motorPickUp = arduino.Motor(ard, current, direction, pwm)
         self.motorTower = arduino.Motor(ard, current, direction, pwm)
         
@@ -110,9 +112,8 @@ class Motors(threading.Thread):
         self.stallPickUp = False;
         self.stallPickUp = False;
 
-        self.running = True
-
     def run(self):
+        self.running = True
         while running:            
             if self.LeftCurrent.getValue() > 800:
                 self.stallLeft = True
@@ -121,7 +122,7 @@ class Motors(threading.Thread):
             if PickUpCurrent.getValue() > 800:
                 self.stallPickUp = True
             if RollerCurrent.getValue() > 800:
-                self.stalPickUp = True
+                self.stallPickUp = True
 
     def stop(self):
         self.running = False
