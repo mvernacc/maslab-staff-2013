@@ -1,7 +1,7 @@
 import os
 import cv
 import cv2
-from vision import Vision
+from vision import Vision, Color
 
 mouse_hsv = [0, 0, 0]
 hue = [0, 180]
@@ -54,7 +54,7 @@ def resetHSV():
     setHSVRange((h, h), (s, s), (v, v))
 
 global mode
-mode = 'R'
+mode = Color.Red
 
 def loadHSV():
     for s in settings:
@@ -117,23 +117,20 @@ while key != 27:
     if key == 65471: # F2 (Save)
         saveHSV()
     if key == 114: # R
-        mode = 'R'
+        mode = Color.Red
         print "RED"
     if key == 103: # G
-        mode = 'G'
+        mode = Color.Green
         print "GREEN"
     if key == 121: # Y
-        mode = 'Y'
+        mode = Color.Yellow
         print "YELLOW"
     if key == 112: # P
-        mode = 'P'
+        mode = Color.Purple
         print "PURPLE"
     if key == 99: # C
-        mode = 'C'
+        mode = Color.Cyan
         print "CYAN"
-    if key == 98: # B
-        mode = 'B'
-        print "BLACK"
     if key == 32: # Space
         resetHSV()
     vis.grab_frame()
