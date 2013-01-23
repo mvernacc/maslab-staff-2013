@@ -30,14 +30,14 @@ class Robot(threading.Thread):
         self.bumpers.run()
         self.ir.run()
         self.motor.run()
-        self.vision.detectObjects(Feature.Ball)
+        #self.vision.detectObjects(Feature.Ball)
 
     def stop(self):    
         self.motorRight.setSpeed(0)
         self.motorLeft.setSpeed(0)
         self.ard.stop()
         self.bumpers.stop()
-        self.vision.stop()
+        #self.vision.stop()
         self.ir.stop()
 
         
