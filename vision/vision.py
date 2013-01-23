@@ -30,9 +30,6 @@ class Vision:
         # Store the debug flag
         self.debug = debug
 
-        self.image = None
-        self.hsv_image = None
-
         # Load calibration settings
         self.calibration = dict()
         f = open("hsv_calibration", "r")
@@ -46,7 +43,6 @@ class Vision:
                                        (values[2], values[3]),
                                        (values[4], values[5]))
         f.close()
-        self.extractFunction = {Color.Red : self.filterHSV2}
 
         # Set up debug windows
         if self.debug:
@@ -63,6 +59,12 @@ class Vision:
             cv2.moveWindow(self.windowOpened, 400, 400)
             cv2.moveWindow(self.windowContour, 800, 400)
 
+        self.image = None
+        self.hsv_image = None
+
+    def extractFunction(self, color):
+        return {Color.Red : self.filterHSV2}.get(color, self.filterHSV)
+
     def grabFrame(self):
         retval, self.imageBGR = self.capture.read()
         self.imageHSV = cv2.cvtColor(self.imageBGR, cv.CV_BGR2HSV)
@@ -71,7 +73,7 @@ class Vision:
 
     def extractColor(self, color):
         hsv = self.calibration.get(color, ((0, 0), (0, 0), (0, 0)))
-        imageExtract = self.extractFunction.get(color, self.filterHSV)(hsv[0], hsv[1], hsv[2])
+        imageExtract = self.extractFunction(color)(hsv[0], hsv[1], hsv[2])
         if self.debug:
             cv2.imshow(self.windowExtract, imageExtract)
         return imageExtract
@@ -99,7 +101,6 @@ class Vision:
 
     def contourCentroid(self, imageIn):
         contours, hierarchy = cv2.findContours(imageIn, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        imageContour = np.zeros(self.imageHSV.shape, np.uint8)
         bestContour = None
         bestArea = 0
         result = None
@@ -113,16 +114,16 @@ class Vision:
             # if moments["m00"] != 0:
             cx = int(moments["m10"] / moments["m00"])
             cy = int(moments["m01"] / moments["m00"])
-            cv2.drawContours(imageContour, [bestContour], 0, (0, 255, 0), 1)
-            cv2.circle(imageContour, (cx, cy), 1, (0, 0, 255), -1)
+            if self.debug:
+                imageContour = np.zeros(self.imageHSV.shape, np.uint8)
+                cv2.drawContours(imageContour, [bestContour], 0, (0, 255, 0), 1)
+                cv2.circle(imageContour, (cx, cy), 1, (0, 0, 255), -1)
+                cv2.imshow(self.windowContour, imageContour)
             result = (cx, cy, bestArea)
-        if self.debug:
-            cv2.imshow(self.windowContour, imageContour)
         return result
 
     def contourMidpoint(self, imageIn):
         contours, hierarchy = cv2.findContours(imageIn, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        imageContour = np.zeros(self.imageHSV.shape, np.uint8)
         bestContour = None
         bestArea = 0
         result = None
@@ -132,34 +133,42 @@ class Vision:
                 bestContour = contour
                 bestArea = area
         if bestContour != None:
-            moments = cv2.moments(bestContour)
-            if moments["m00"] != 0:
-                cx = int(moments["m10"] / moments["m00"])
-                cy = int(moments["m01"] / moments["m00"])
+            l = bestContour[bestContour[:,:,0].argmin()][0][0]
+            r = bestContour[bestContour[:,:,0].argmax()][0][0]
+            t = bestContour[bestContour[:,:,1].argmin()][0][1]
+            b = bestContour[bestContour[:,:,1].argmax()][0][1]
+            print l, r, t, b
+            cx = (l + r) / 2
+            cy = (t + b) / 2
+            if self.debug:
+                imageContour = np.zeros(self.imageHSV.shape, np.uint8)
                 cv2.drawContours(imageContour, [bestContour], 0, (0, 255, 0), 1)
                 cv2.circle(imageContour, (cx, cy), 1, (0, 0, 255), -1)
-                result = (cx, cy, bestArea)
-        if self.debug:
-            cv2.imshow(self.windowContour, imageContour)
+                cv2.imshow(self.windowContour, imageContour)
+            result = (cx, cy, bestArea)
         return result
 
-    # Helper function for object detection
-    def _detectObject(self, color):
+    # Helper functions for object detection
+    def _detectObjectCentroid(self, color):
         obj = self.extractColor(color)
         obj = self.morphOpen(obj)
         return self.contourCentroid(obj)
+    def _detectObjectMidpoint(self, color):
+        obj = self.extractColor(color)
+        obj = self.morphOpen(obj)
+        return self.contourMidpoint(obj)
 
     def detectObjects(self, flags):
         objects = dict()
         self.grabFrame()
         if (flags & Feature.Ball):
-            objects[Feature.Ball] = self._detectObject(self.color)
+            objects[Feature.Ball] = self._detectObjectCentroid(self.color)
         if (flags & Feature.Wall):
-            objects[Feature.Wall] = self._detectObject(Color.Yellow)
+            objects[Feature.Wall] = self._detectObjectMidpoint(Color.Yellow)
         if (flags & Feature.Button):
-            objects[Feature.Button] = self._detectObject(Color.Cyan)
+            objects[Feature.Button] = self._detectObjectCentroid(Color.Cyan)
         if (flags & Feature.Tower):
-            objects[Feature.Tower] = self._detectObject(Color.Purple)
+            objects[Feature.Tower] = self._detectObjectMidpoint(Color.Purple)
         return objects
 
     def grab_frame(self):
