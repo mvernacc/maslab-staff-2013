@@ -1,6 +1,6 @@
 import arduino # Import the interface library
 import threading, thread
-from vision.vision import Vision
+from vision.vision import Vision, Color, Feature
 
 import cv2
 import cv
@@ -30,7 +30,7 @@ class Robot(threading.Thread):
         self.bumpers.run()
         self.ir.run()
         self.motor.run()
-        self.visBall.detectObjects(Vision.Feature.Ball)
+        self.visBall.detectObjects(Feature.Ball)
 
     def stop(self):
         self.motorRight.setSpeed(0)
