@@ -25,7 +25,7 @@ class FiniteStateMachine:
         self.state = None
 
         # Store robot properties
-        self.robot = Robot(color)
+        self.robot = Robot()
         self.robot.start()
         time.sleep(1)
 
@@ -51,26 +51,27 @@ class FiniteStateMachine:
 
 class StartState(State):
     def next_state(self):
+        start_code = (False, False)
         while start_code == (False, False):
             start_code = self.robot.bumpers.bumped
         if start_code[0]:
-            self.robot.color = Color.Green
+            self.robot.vision.color = Color.Green
             self.log("Playing for GREEN")
         elif start_code[1]:
-            self.robot.color = Color.Red
+            self.robot.vision.color = Color.Red
             self.log("Playing for RED")
         self.robot.time.reset()
         while self.robot.time.elapsed() < 1:
             pass
-        self.robot.motors.motorPickUp.setSpeed(60)
+        # self.robot.motors.motorPickUp.setSpeed(60)
         return ScanState(self.robot)
 
 class ScanState(State):
     def next_state(self):
         # Rotate around
         direction = random.choice([-1, 1])
-        self.robot.motor.motorLeft.setSpeed(-direction * 40)
-        self.robot.motor.motorRight.setSpeed(direction * 40)
+        self.robot.motors.left.setSpeed(-direction * 40)
+        self.robot.motors.right.setSpeed(direction * 40)
         # while self.state_time() < 0.5:
         #     pass
         self.robot.vision.features = Feature.Ball | Feature.Wall
@@ -86,8 +87,9 @@ class ScanState(State):
 class WanderState(State):
     def next_state(self):
         # Move forward
-        self.robot.motor.motorLeft.setSpeed(50)
-        self.robot.motor.motorRight.setSpeed(50)
+        self.robot.motors.left.setSpeed(50)
+        self.robot.motors.right.setSpeed(50)
+        self.robot.vision.features = Feature.Ball
         while self.state_time() < 4:
             if True in self.robot.bumpers.bumped:
                 return ReverseState(self.robot)
@@ -97,8 +99,8 @@ class WanderState(State):
 
 class ReverseState(State):
     def next_state(self):
-        self.robot.motor.motorRight.setSpeed(-40)
-        self.robot.motor.motorLeft.setSpeed(-40)
+        self.robot.motors.right.setSpeed(-40)
+        self.robot.motors.left.setSpeed(-40)
         while self.state_time() < 1:
             pass
         return ScanState(self.robot)
@@ -106,6 +108,7 @@ class ReverseState(State):
 class FollowBallState(State):
     def next_state(self):
         # PID on ball's visual position
+        self.robot.vision.features = Feature.Ball
         while self.robot.time.elapsed() < 120:
             if True in self.robot.bumpers.bumped:
                 return ReverseState(self.robot)
@@ -113,21 +116,22 @@ class FollowBallState(State):
                 ball_pos = 30 * (2 * self.robot.vision.detections[Feature.Ball][0] / self.robot.vision.width - 1)
                 angle = int(ball_pos)
                 self.log(str(angle))
-                self.robot.motor.motorRight.setSpeed(60 - angle)
-                self.robot.motor.motorLeft.setSpeed(60 + angle)
+                self.robot.motors.right.setSpeed(60 - angle)
+                self.robot.motors.left.setSpeed(60 + angle)
             else:
                 # Move forward short distance
                 self.log("Charging...")
                 start_time = time.time()
                 while time.time() - start_time < 0.1:
-                    self.robot.motor.motorLeft.setSpeed(40)
-                    self.robot.motor.motorRight.setSpeed(40)
+                    self.robot.motors.left.setSpeed(40)
+                    self.robot.motors.right.setSpeed(40)
                 return ScanState(self.robot)
         return ScanState(self.robot)
 
 class FollowWallState(State):
     def next_state(self):
         # PID on wall's visual position
+        self.robot.vision.features = Feature.Wall
         while self.robot.time.elapsed() < 180:
             if True in self.robot.bumpers.bumped:
                 return ReverseState(self.robot)
@@ -135,15 +139,15 @@ class FollowWallState(State):
                 wall_pos = 30 * (2 * self.robot.vision.detections[Feature.Wall][0] / self.robot.vision.width - 1)
                 angle = int(wall_pos)
                 self.log(str(angle))
-                self.robot.motor.motorRight.setSpeed(60 - angle)
-                self.robot.motor.motorLeft.setSpeed(60 + angle)
+                self.robot.motors.right.setSpeed(60 - angle)
+                self.robot.motors.left.setSpeed(60 + angle)
             else:
                 # Move back short distance
                 self.log("Reversing...")
                 start_time = time.time()
                 while time.time() - start_time < 2:
-                    self.robot.motor.motorLeft.setSpeed(-40)
-                    self.robot.motor.motorRight.setSpeed(-40)
+                    self.robot.motors.left.setSpeed(-40)
+                    self.robot.motors.right.setSpeed(-40)
                 return ScanState(self.robot)
         return ScanState(self.robot)
 

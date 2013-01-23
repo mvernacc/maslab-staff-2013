@@ -9,15 +9,14 @@ import sys, getopt
 
 class Robot(threading.Thread):
     
-    def __init__(self, color):
-        # color = what color ball we're going for
-        
+    def __init__(self):
+        threading.Thread.__init__(self)
         self.ard = arduino.Arduino() # Create the Arduino object
-        self.bumpers = Bumpers()
-        self.ir = IR()
-        self.motors = Motors()
+        self.bumpers = Bumpers(self.ard)
+        self.ir = IR(self.ard)
+        self.motors = Motors(self.ard)
         self.vision = Vision()
-        self.vision.color = color
+        self.vision.color = Color.Red
         self.vision.features = Feature.Ball
         self.time = Timer()
 
@@ -29,24 +28,24 @@ class Robot(threading.Thread):
         self.ard.start()
         self.bumpers.start()
         self.ir.start()
-        self.motor.start()
+        self.motors.start()
         self.vision.start()
 
     def stop(self):
         self.bumpers.stop()
         self.ir.stop()
-        self.motor.stop()
+        self.motors.stop()
         self.vision.stop()
         self.ard.stop()
 
         
 class Bumpers(threading.Thread):
 
-    def __init__(self):
+    def __init__(self, ard):
         threading.Thread.__init__(self)
 
-        self.bumpFrontRight = arduino.DigitalInput(ard, 22) # Digital input on pin 22
-        self.bumpFrontLeft = arduino.DigitalInput(ard, 23) # Digital input on pin 23
+        self.right = arduino.DigitalInput(ard, 22) # Digital input on pin 22
+        self.left = arduino.DigitalInput(ard, 23) # Digital input on pin 23
         # self.bumpBackRight = arduino.DigitalInput(ard, 26)
         # self.bumpBackLeft = arduino.DigitalInput(ard, 29)
         
@@ -55,7 +54,7 @@ class Bumpers(threading.Thread):
     def run(self):
         self.running = True
         while self.running:
-            self.bumped = (bumpFrontLeft.getValue(), bumpFrontRight.getValue())
+            self.bumped = (self.left.getValue(), self.right.getValue())
 
     def stop(self):
             self.running = False
@@ -63,7 +62,7 @@ class Bumpers(threading.Thread):
 
 class IR(threading.Thread):
     
-    def __init__(self):
+    def __init__(self, ard):
         threading.Thread.__init__(self)
         
         self.nirRight = arduino.DigitalInput(ard, 4)
@@ -90,20 +89,20 @@ class IR(threading.Thread):
 
 class Motors(threading.Thread):
 
-    def __init__(self):
+    def __init__(self, ard):
         threading.Thread.__init__(self)
 	""" Arduino must have left motor as 0th motor and right motor as 1st motor for PID. """
-        self.motorLeft = arduino.Motor(ard, 1, 11, 10)
+        self.left = arduino.Motor(ard, 1, 11, 10)
             # Motor with pwm output on pin 10, direction pin on digital pin 11, and current sensing pin on pin A1
-        self.motorRight = arduino.Motor(ard, 0, 9, 8)
+        self.right = arduino.Motor(ard, 0, 9, 8)
             # Motor with pwm output on pin 8, direction pin on digital pin 9, and current sensing pin on pin A0
         # self.motorPickUp = arduino.Motor(ard, current, direction, pwm)
         # self.motorTower = arduino.Motor(ard, current, direction, pwm)
         
-        self.currentLeft = ard.AnalogInput(ard, 0)
-        self.currentRight = ard.AnalogInput(ard, 1)
-        self.currentPickUp = ard.AnalogInput(ard, 2)
-        self.currentTower = ard.AnalogInput(ard, 3)
+        self.currentLeft = arduino.AnalogInput(ard, 0)
+        self.currentRight = arduino.AnalogInput(ard, 1)
+        self.currentPickUp = arduino.AnalogInput(ard, 2)
+        self.currentTower = arduino.AnalogInput(ard, 3)
 
         self.stallLeft = False;
         self.stallRight = False;
@@ -124,10 +123,10 @@ class Motors(threading.Thread):
 
     def stop(self):
         self.running = False
-        self.motorRight.setSpeed(0)
-        self.motorLeft.setSpeed(0)
-        self.motorPickUp.setSpeed(0)
-        self.motorTower.setSpeed(0)
+        self.right.setSpeed(0)
+        self.left.setSpeed(0)
+        # self.motorPickUp.setSpeed(0)
+        # self.motorTower.setSpeed(0)
 
 
 import time
