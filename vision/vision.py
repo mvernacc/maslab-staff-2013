@@ -1,6 +1,7 @@
 import cv
 import cv2
 import numpy as np
+import threading
 
 class Color:
     Red    = 'R'
@@ -15,10 +16,10 @@ class Feature:
     Button = 0b0100
     Tower  = 0b1000
 
-class Vision:
+class Vision(threading.Thread):
     def __init__(self, color = Color.Red, debug = False):
-        # Store the playing color
-        self.color = color
+        # Store the debug flag
+        self.debug = debug
 
         # Set up the video camera
         self.width = 320
@@ -27,8 +28,13 @@ class Vision:
         self.capture.set(cv.CV_CAP_PROP_FRAME_WIDTH, self.width)
         self.capture.set(cv.CV_CAP_PROP_FRAME_HEIGHT, self.height)
 
-        # Store the debug flag
-        self.debug = debug
+        # Set up the default vision properties
+        self.color = Color.Red
+        self.features = 0
+        self.detections = dict()
+
+        # Set up the thread
+        threading.Thread.__init__(self)
 
         # Load calibration settings
         self.calibration = dict()
@@ -158,18 +164,26 @@ class Vision:
         obj = self.morphOpen(obj)
         return self.contourMidpoint(obj)
 
-    def detectObjects(self, flags):
-        objects = dict()
+    def detectObjects(self, features):
+        detections = dict()
         self.grabFrame()
-        if (flags & Feature.Ball):
-            objects[Feature.Ball] = self._detectObjectCentroid(self.color)
-        if (flags & Feature.Wall):
-            objects[Feature.Wall] = self._detectObjectMidpoint(Color.Yellow)
-        if (flags & Feature.Button):
-            objects[Feature.Button] = self._detectObjectCentroid(Color.Cyan)
-        if (flags & Feature.Tower):
+        if (features & Feature.Ball):
+            detections[Feature.Ball] = self._detectObjectCentroid(self.color)
+        if (features & Feature.Wall):
+            detections[Feature.Wall] = self._detectObjectMidpoint(Color.Yellow)
+        if (features & Feature.Button):
+            detections[Feature.Button] = self._detectObjectCentroid(Color.Cyan)
+        if (features & Feature.Tower):
             objects[Feature.Tower] = self._detectObjectMidpoint(Color.Purple)
-        return objects
+        return detections
+
+    def run(self):
+        self.running = True
+        while self.running:
+            self.detections = self.detectObjects(self.features)
+
+    def stop(self):
+        self.running = False
 
     def grab_frame(self):
         retval, self.image = self.capture.read()

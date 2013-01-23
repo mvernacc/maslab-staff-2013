@@ -9,60 +9,55 @@ import sys, getopt
 
 class Robot(threading.Thread):
     
-    def __init__(self, arduino, color):
+    def __init__(self, color):
         # color = what color ball we're going for
         
-        self.ard = arduino # Create the Arduino object
-        self.bumpers = Bumper()
+        self.ard = arduino.Arduino() # Create the Arduino object
+        self.bumpers = Bumpers()
         self.ir = IR()
-        self.motor = Motor()
-        self.vision = Vision(color)
-
+        self.motors = Motors()
+        self.vision = Vision()
+        self.vision.color = color
+        self.vision.features = Feature.Ball
 
         #servoGate = arduino.Servo(ard, pwm)
-
-        
         #onOff = arduino.DigitalInput(ard,)
         #redGreen = arduino.DigitalInput(ard,)
 
     def run(self):
-        self.ard.run()
-        self.bumpers.run()
-        self.ir.run()
-        self.motor.run()
-        #self.vision.detectObjects(Feature.Ball)
+        self.ard.start()
+        self.bumpers.start()
+        self.ir.start()
+        self.motor.start()
+        self.vision.start()
 
-    def stop(self):    
-        self.motorRight.setSpeed(0)
-        self.motorLeft.setSpeed(0)
-        self.ard.stop()
+    def stop(self):
         self.bumpers.stop()
-        #self.vision.stop()
         self.ir.stop()
+        self.motor.stop()
+        self.vision.stop()
+        self.ard.stop()
 
         
-class Bumper(threading.Thread):
+class Bumpers(threading.Thread):
+
     def __init__(self):
         threading.Thread.__init__(self)
 
         self.bumpFrontRight = arduino.DigitalInput(ard, 22) # Digital input on pin 22
         self.bumpFrontLeft = arduino.DigitalInput(ard, 23) # Digital input on pin 23
-        #self.bumpBackRight = arduino.DigitalInput(ard, 26)
-        #self.bumpBackLeft = arduino.DigitalInput(ard, 29)
+        # self.bumpBackRight = arduino.DigitalInput(ard, 26)
+        # self.bumpBackLeft = arduino.DigitalInput(ard, 29)
         
-        self.bumped = (False, False)
-            # (Left, Right)
+        self.bumped = (False, False) # (left, right)
 
     def run(self):
-        while self.bumped == (False, False):
+        self.running = True
+        while self.running:
             self.bumped = (bumpFrontLeft.getValue(), bumpFrontRight.getValue())
-        while self.bumped == (True, False):
-            self.bumped = (True, bumpFrontRight.getValue())
-        while self.bumped == (False, True):
-            self.bumped = (bumpFrontLeft.getValue(), True)
 
     def stop(self):
-            self.bumped == (False, False);
+            self.running = False
 
 
 class IR(threading.Thread):
@@ -73,12 +68,13 @@ class IR(threading.Thread):
         self.nirRight = arduino.AnalogInput(ard, 4)
         self.nirLeft = arduino.AnalogInput(ard, 5)
         #self.firRight = arduino.AnalogInput(ard, 6)
-        #self.firRight = arduino.AnalogInput(ard, 7)
+        #self.firLeft = arduino.AnalogInput(ard, 7)
         
         self.nirLeftVal = 0.0
         self.nirRightVal = 0.0
         #self.firLeftVal = 0.0
         #self.firRightVal = 0.0
+
     def run(self):
         self.running = True;
         while self.running:
@@ -92,6 +88,7 @@ class IR(threading.Thread):
         
 
 class Motors(threading.Thread):
+
     def __init__(self):
         threading.Thread.__init__(self)
 	""" Arduino must have left motor as 0th motor and right motor as 1st motor for PID. """
@@ -99,13 +96,13 @@ class Motors(threading.Thread):
             # Motor with pwm output on pin 10, direction pin on digital pin 11, and current sensing pin on pin A1
         self.motorRight = arduino.Motor(ard, 0, 9, 8)
             # Motor with pwm output on pin 8, direction pin on digital pin 9, and current sensing pin on pin A0
-        self.motorPickUp = arduino.Motor(ard, current, direction, pwm)
-        self.motorTower = arduino.Motor(ard, current, direction, pwm)
+        # self.motorPickUp = arduino.Motor(ard, current, direction, pwm)
+        # self.motorTower = arduino.Motor(ard, current, direction, pwm)
         
-        self.LeftCurrent = ard.AnalogInput(ard, 0)
-        self.RightCurrent = ard.AnalogInput(ard, 1)
-        self.PickUpCurrent = ard.AnalogInput(ard, 2)
-        self.RollerCurrent = ard.AnalogInput(ard, 3)
+        self.currentLeft = ard.AnalogInput(ard, 0)
+        self.currentRight = ard.AnalogInput(ard, 1)
+        self.currentPickUp = ard.AnalogInput(ard, 2)
+        self.currentTower = ard.AnalogInput(ard, 3)
 
         self.stallLeft = False;
         self.stallRight = False;
@@ -115,14 +112,18 @@ class Motors(threading.Thread):
     def run(self):
         self.running = True
         while running:            
-            if self.LeftCurrent.getValue() > 800:
+            if self.currentLeft.getValue() > 800:
                 self.stallLeft = True
-            if self.RightCurrent.getValue() > 800:
+            if self.currentRight.getValue() > 800:
                 self.stallRight = True
-            if PickUpCurrent.getValue() > 800:
+            if self.currentPickUp.getValue() > 800:
                 self.stallPickUp = True
-            if RollerCurrent.getValue() > 800:
+            if self.currentTower.getValue() > 800:
                 self.stallPickUp = True
 
     def stop(self):
         self.running = False
+        self.motorRight.setSpeed(0)
+        self.motorLeft.setSpeed(0)
+        self.motorPickUp.setSpeed(0)
+        self.motorTower.setSpeed(0)

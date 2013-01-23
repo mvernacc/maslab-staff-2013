@@ -1,14 +1,14 @@
 import time
 import arduino
 import random
-import Robot
 import threading
+from Robot import Robot
 from vision.vision import Vision, Color, Feature
 
 class State:
-    def __init__(self, fsm, options = None):
-        # Reference the FSM to access properties
-        self.fsm = fsm
+    def __init__(self, robot, options = None):
+        # Reference the robot to access properties
+        self.robot = robot
         self.options = options
         self.start_time = time.time()
     def next_state(self):
@@ -19,31 +19,18 @@ class State:
         print "  " + message
 
 class FiniteStateMachine:
-    def __init__(self, color = "red"):
+    def __init__(self, color = Color.Red):
         # Store match properties
         self.color = color
         self.state = None
+
         # Store robot properties
-        self.arduino = arduino.Arduino()
-        self.robot = Robot.Robot(color)
-#        self.motor_left = arduino.Motor(self.arduino, 0, 9, 8)
-#        self.motor_right = arduino.Motor(self.arduino, 0, 7, 6)
-#        self.motor_pickup = arduino.Motor(self.arduino, 0, 12, 11)
-#        self.bump_left = arduino.DigitalInput(self.arduino, 23)
-#        self.bump_right = arduino.DigitalInput(self.arduino, 22)
-#        self.vision = Vision(True)
-
-        # Start Arduino thread
-        #self.arduino.run()
-        self.robot.run()
+        self.robot = Robot(color)
+        self.robot.start()
         time.sleep(1)
-        # a = time.time()
-        # while time.time() - a < 5:
-        #     print self.bump_left.getValue()
-        #     print self.bump_right.getValue()
 
-    def run(self):
-        self.state = StartState(self)
+    def start(self):
+        self.state = StartState(self.robot)
         self.start_time = time.time()
         while self.time_elapsed() < 180:
             try:
@@ -55,14 +42,8 @@ class FiniteStateMachine:
 
     def stop(self):
         # Kill everything
-        time.sleep(0.1)
-        self.motor_right.setSpeed(0)
-        self.motor_left.setSpeed(0)
-        self.motor_pickup.setSpeed(0)
-        self.motor_roller.setSpeed(0)
-        time.sleep(0.1)
         self.robot.stop()
-#        self.arduino.stop()
+        time.sleep(0.1)
 
     def time_elapsed(self):
         return time.time() - self.start_time
@@ -71,111 +52,106 @@ class FiniteStateMachine:
 
 class StartState(State):
     def next_state(self):
-        start_code = self.fsm.bump_left.getValue() - self.fsm.bump_right.getValue()
-        while start_code == 0:
-            start_code = self.fsm.bump_left.getValue() - self.fsm.bump_right.getValue()
-        if start_code > 0:
-            self.fsm.color = "green"
-            self.log("green")
-        else:
-            self.fsm.color = "red"
-            self.log("red")
+        while start_code == (False, False):
+            start_code = self.robot.bumpers.bumped
+        if start_code[0]:
+            self.robot.color = Color.Green
+            self.log("Playing for GREEN")
+        elif start_code[1]:
+            self.robot.color = Color.Red
+            self.log("Playing for RED")
         self.fsm.start_time = time.time()
         while self.fsm.time_elapsed() < 1:
             pass
-        self.fsm.motor_pickup.setSpeed(60)
-        return ScanState(self.fsm)
+        self.robot.motors.motorPickUp.setSpeed(60)
+        return ScanState(self.robot)
 
 class ScanState(State):
     def next_state(self):
         # Rotate around
         direction = random.choice([-1, 1])
-        self.fsm.motor_left.setSpeed(-direction * 40)
-        self.fsm.motor_right.setSpeed(direction * 40)
+        self.robot.motor.motorLeft.setSpeed(-direction * 40)
+        self.robot.motor.motorRight.setSpeed(direction * 40)
         # while self.state_time() < 0.5:
         #     pass
+        self.robot.vision.features = Feature.Ball | Feature.Wall
         while self.state_time() < 4:
             if self.fsm.time_elapsed() < 120:
-                self.fsm.vision.grab_frame()
-                if self.fsm.vision.detect_balls(self.fsm.color) != None:
-                    return FollowBallState(self.fsm)
+                if Feature.Ball in self.robot.vision.detections:
+                    return FollowBallState(self.robot)
             else:
-                self.fsm.vision.grab_frame()
-                if self.fsm.vision.detect_wall() != None:
-                    return FollowWallState(self.fsm)
-        return WanderState(self.fsm)
+                if Feature.Wall in self.robot.vision.detections:
+                    return FollowWallState(self.robot)
+        return WanderState(self.robot)
 
 class WanderState(State):
     def next_state(self):
         # Move forward
-        self.fsm.motor_left.setSpeed(50)
-        self.fsm.motor_right.setSpeed(50)
+        self.robot.motor.motorLeft.setSpeed(50)
+        self.robot.motor.motorRight.setSpeed(50)
         while self.state_time() < 4:
-            if self.fsm.bump_left.getValue() or self.fsm.bump_right.getValue():
-                return ReverseState(self.fsm)
-            self.fsm.vision.grab_frame()
-            if self.fsm.vision.detect_balls(self.fsm.color) != None:
-                return FollowBallState(self.fsm)
-        return ScanState(self.fsm)
+            if True in self.robot.bumpers.bumped:
+                return ReverseState(self.robot)
+            if Feature.Ball in self.robot.vision.detections:
+                return FollowBallState(self.robot)
+        return ScanState(self.robot)
 
 class ReverseState(State):
     def next_state(self):
-        self.fsm.motor_right.setSpeed(-40)
-        self.fsm.motor_left.setSpeed(-40)
+        self.robot.motor.motorRight.setSpeed(-40)
+        self.robot.motor.motorLeft.setSpeed(-40)
         while self.state_time() < 1:
             pass
-        return ScanState(self.fsm)
+        return ScanState(self.robot)
 
 class FollowBallState(State):
     def next_state(self):
         # PID on ball's visual position
         while self.fsm.time_elapsed() < 120:
-            if self.fsm.bump_left.getValue() or self.fsm.bump_right.getValue():
-                return ReverseState(self.fsm)
-            self.fsm.vision.grab_frame()
-            ball_pos = self.fsm.vision.detect_balls(self.fsm.color)
-            if ball_pos != None:
+            if True in self.robot.bumpers.bumped:
+                return ReverseState(self.robot)
+            if Feature.Ball in self.robot.vision.detections:
+                ball_pos = 30 * (2 * self.robot.vision.detections[Feature.Ball] / self.robot.vision.width - 1)
                 angle = int(ball_pos)
                 self.log(str(angle))
-                self.fsm.motor_right.setSpeed(60 - angle)
-                self.fsm.motor_left.setSpeed(60 + angle)
+                self.robot.motor.motorRight.setSpeed(60 - angle)
+                self.robot.motor.motorLeft.setSpeed(60 + angle)
             else:
                 # Move forward short distance
                 self.log("Charging...")
                 start_time = time.time()
                 while time.time() - start_time < 0.1:
-                    self.fsm.motor_left.setSpeed(40)
-                    self.fsm.motor_right.setSpeed(40)
-                return ScanState(self.fsm)
-        return ScanState(self.fsm)
+                    self.robot.motor.motorLeft.setSpeed(40)
+                    self.robot.motor.motorRight.setSpeed(40)
+                return ScanState(self.robot)
+        return ScanState(self.robot)
 
 class FollowWallState(State):
     def next_state(self):
         # PID on wall's visual position
         while self.fsm.time_elapsed() < 180:
-            if self.fsm.bump_left.getValue() or self.fsm.bump_right.getValue():
-                return ReverseState(self.fsm)
-            self.fsm.vision.grab_frame()
-            wall_pos = self.fsm.vision.detect_wall()
-            if wall_pos != None:
+            if True in self.robot.bumpers.bumped:
+                return ReverseState(self.robot)
+            if Feature.Wall in self.robot.vision.detections:
+                wall_pos = 30 * (2 * self.robot.vision.detections[Feature.Wall] / self.robot.vision.width - 1)
                 angle = int(wall_pos)
                 self.log(str(angle))
-                self.fsm.motor_right.setSpeed(60 - angle)
-                self.fsm.motor_left.setSpeed(60 + angle)
+                self.robot.motor.motorRight.setSpeed(60 - angle)
+                self.robot.motor.motorLeft.setSpeed(60 + angle)
             else:
                 # Move back short distance
                 self.log("Reversing...")
                 start_time = time.time()
                 while time.time() - start_time < 2:
-                    self.fsm.motor_left.setSpeed(-40)
-                    self.fsm.motor_right.setSpeed(-40)
-                return ScanState(self.fsm)
-        return ScanState(self.fsm)
+                    self.robot.motor.motorLeft.setSpeed(-40)
+                    self.robot.motor.motorRight.setSpeed(-40)
+                return ScanState(self.robot)
+        return ScanState(self.robot)
 
 
 
 maslab_fsm = FiniteStateMachine()
-maslab_fsm.run()
+maslab_fsm.start()
 
 
 
