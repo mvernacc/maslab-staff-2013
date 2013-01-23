@@ -16,7 +16,7 @@ class Robot(threading.Thread):
         self.bumpers = Bumper()
         self.ir = IR()
         self.motor = Motor()
-        self.visBall = Vision(color)
+        self.vision = Vision(color)
 
 
         #servoGate = arduino.Servo(ard, pwm)
@@ -30,14 +30,14 @@ class Robot(threading.Thread):
         self.bumpers.run()
         self.ir.run()
         self.motor.run()
-        self.visBall.detectObjects(Feature.Ball)
+        #self.vision.detectObjects(Feature.Ball)
 
     def stop(self):    
         self.motorRight.setSpeed(0)
         self.motorLeft.setSpeed(0)
         self.ard.stop()
         self.bumpers.stop()
-        self.vision.stop()
+        #self.vision.stop()
         self.ir.stop()
 
         
@@ -110,7 +110,7 @@ class Motors(threading.Thread):
         self.stallLeft = False;
         self.stallRight = False;
         self.stallPickUp = False;
-        self.stallPickUp = False;
+        self.stallTower = False;
 
     def run(self):
         self.running = True
