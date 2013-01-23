@@ -31,6 +31,15 @@ class Arduino(threading.Thread):
     servoPorts = []
     imus = []
 
+    # Variables for the PID drive train
+    pidActiveFlag = False # True if PID is active
+    pidErrorFlag = False  # True if new error value
+    pidResetFlag = False  # True if new constants
+    pidError = 0
+    pidKp = 0
+    pidKi = 0
+    pidKd = 0
+
     # Initialize the thread and variables
     def __init__(self):
         threading.Thread.__init__(self)
@@ -103,6 +112,15 @@ class Arduino(threading.Thread):
         output += "A" + chr(len(self.analogOutputs))
         for i in self.analogOutputs:
             output += chr(i)
+        if self.pidResetFlag:
+            output += "C" + chr(self.pidKp) + chr(self.pidKi) + chr(self.pidKd)
+        if self.pidActiveFlag:
+            output += "P"
+            if self.pidErrorFlag:
+                output += chr(1) + chr(self.pidError)
+                self.pidErrorFlag = False
+            else:
+                output += chr(2)
         output += ";"
         self.port.write(output)
         #print output
@@ -146,6 +164,7 @@ class Arduino(threading.Thread):
             # IMU
             elif (mode == 'U'):
                 # Read compass (2 bytes)
+
                 byte0 = ord(self.serialRead())
                 byte1 = ord(self.serialRead())
                 compass = byte1 * 256 + byte0
@@ -196,6 +215,11 @@ class Arduino(threading.Thread):
     # Send initializing data to the arduino, so that it can dynamically set up
     # the actuators and sensors in memory
     def sendInitData(self):
+        # The 'I' command mode means initializing data
+        output = ""
+        output += "I"
+        # Motor component of initializing
+        output += "M"
         # The 'I' command mode means initializing data
         output = ""
         output += "I"
@@ -319,6 +343,10 @@ class Arduino(threading.Thread):
         return self.analogInputs[index]
     def getIMUVals(self, index):
         return self.imuVals[index]
+    def setPidError(self, error):
+        # Sends the error (in degrees) to the arduino so it can do pwm
+        self.pidError = error
+	self.pidErrorFlag = True
 
     # Functions to set up the components (these are called through the classes
     # below, don't call these yourself!)
@@ -440,3 +468,35 @@ class IMU:
         self.index = self.arduino.addIMU()
     def getRawValues(self):
         return self.arduino.getIMUVals(self.index)
+
+import clamp
+
+# Class to interact with PID control of the drive train
+class PID:
+    def __init__(self, arduino):
+	""" Arduino must have left motor as 0th motor and right motor as 1st motor. """
+        self.arduino = arduino
+    def setError(self, error):
+        # Clamp to [-126, 126]
+        error = clamp(error, -126, 126)
+        # Modify the -126 to 127 range to be 0 to 255 for the Arduino
+        error = error % 255
+        # """ Error in degrees. """
+        # # Clamp to [0, 360]
+        # error = clamp(error, 0, 360)
+        # # Change the [0, 360] range to [0, 180] so it fits in a byte
+        # error = error / 2
+        self.arduino.setPidError(error)
+    def start(self):
+        self.arduino.pidActiveFlag = True
+    def stop(self):
+        self.arduino.pidActiveFlag = False
+    def reset(self, kp, ki, kd):
+        """ Resets the integral and changes the constants. Constants should be floats in [0, 2.55]. """
+        kp = clamp(kp, 0, 2.55)
+        ki = clamp(ki, 0, 2.55)
+        kd = clamp(kd, 0, 2.55)
+        self.pidKp = math.floor(kp * 100)
+        self.pidKi = math.floor(ki * 100)
+        self.pidKd = math.floor(kd * 100)
+        self.arduino.pidResetFlag = True

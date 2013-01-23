@@ -521,7 +521,7 @@ void loop()
         
          // filter angle values
         long angle;
-        long beta = 4;
+        long beta = 0.3;
         angle = beta*yawAngle/(1 + beta) + headingDegrees/(1+ beta);
         yawAngle = yawAngle % 360;
         Serial.write((char)(angle % 256));
@@ -620,7 +620,7 @@ void analogOutput()
 class PIDController
 {
   private:
-    int kProportional, kIntegral, kDifferential;
+    float kProportional, kIntegral, kDifferential;
     float errorProportional, errorIntegral, errorDifferential;
     unsigned long lastTime;
   public:
@@ -628,7 +628,7 @@ class PIDController
     {
       reset(0, 0, 0);
     }
-    void reset(int kP, int kI, int kD)
+    void reset(float kP, float kI, float kD)
     {
       kProportional = kP;
       kIntegral = kI;
@@ -660,7 +660,10 @@ PIDController pid = PIDController();
 
 void pidReset()
 {
-  pid.reset((int) serialRead(), (int) serialRead(), (int) serialRead());
+  float kP = (float)(int) serialRead() / 100.0
+  float kI = (float)(int) serialRead() / 100.0
+  float kD = (float)(int) serialRead() / 100.0
+  pid.reset(kP, kI, kD);
 }
 
 void pidAdjust()
@@ -669,7 +672,13 @@ void pidAdjust()
   {
     // New error
     case 1:
-      pid.update((int) serialRead());
+      int e = ((int) serialRead());
+      // Make e signed
+      if (e > 127)
+      {
+        e -= 256;
+      }
+      pid.update(e);
     // Old error
     case 2:
       pid.adjust();
