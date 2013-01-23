@@ -7,26 +7,16 @@ import serial
 
 ard = arduino.Arduino()
 imu = arduino.IMU(ard)
-test = arduino.AnalogInput(ard, 4)
-bump = arduino.DigitalInput(ard, 22)
 
-running = True
-
-def halt():
-    print "Stopping"
-    running = False
-    ard.stop()
-
-timer = threading.Timer(5.0, halt)
-timer.start()
+start_time = time.time()
 
 ard.run()
 
-while running:
+while time.time() - start_time < 20:
     print imu.getRawValues()
-    print bump.getValue()
-    print test.getValue()
-    time.sleep(0.1)
+    # print clock.getValue()
+    # print test.getValue()
+    # time.sleep(0.1)
 
 ard.stop()
 
