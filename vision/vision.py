@@ -2,16 +2,36 @@ import cv
 import cv2
 import numpy as np
 
+class Color:
+    Red    = 'R'
+    Green  = 'G'
+    Yellow = 'Y'
+    Cyan   = 'C'
+    Purple = 'P'
+
+class Feature:
+    Ball   = 0b0001
+    Wall   = 0b0010
+    Button = 0b0100
+    Tower  = 0b1000
+
 class Vision:
-    def __init__(self, debug = False):
-        self.debug = debug
-        self.image = None
-        self.hsv_image = None
+    def __init__(self, color = Color.Red, debug = False):
+        # Store the playing color
+        self.color = color
+
+        # Set up the video camera
         self.width = 320
         self.height = 240
         self.capture = cv2.VideoCapture(1)
         self.capture.set(cv.CV_CAP_PROP_FRAME_WIDTH, self.width)
         self.capture.set(cv.CV_CAP_PROP_FRAME_HEIGHT, self.height)
+
+        # Store the debug flag
+        self.debug = debug
+
+        self.image = None
+        self.hsv_image = None
 
         # Load calibration settings
         self.calibration = dict()
@@ -26,27 +46,35 @@ class Vision:
                                        (values[2], values[3]),
                                        (values[4], values[5]))
         f.close()
-        self.extractFunction = {'R' : self.filterHSV2}
+        self.extractFunction = {Color.Red : self.filterHSV2}
 
         # Set up debug windows
-        if debug:
-            self.win_orig = "Original Image"
-            self.win_color = "Colored Regions"
-            self.win_open = "Opened Regions"
-            cv2.namedWindow(self.win_orig)
-            cv2.namedWindow(self.win_color)
-            cv2.namedWindow(self.win_open)
-            cv2.moveWindow(self.win_orig, 600, 30)
-            cv2.moveWindow(self.win_color, 600, 300)
-            cv2.moveWindow(self.win_open, 600, 570)
+        if self.debug:
+            self.windowOriginal = "Original Image"
+            self.windowExtract = "Extracted Color"
+            self.windowOpened = "Opened Regions"
+            self.windowContour = "Selected Contour"
+            cv2.namedWindow(self.windowOriginal)
+            cv2.namedWindow(self.windowExtract)
+            cv2.namedWindow(self.windowOpened)
+            cv2.namedWindow(self.windowContour)
+            cv2.moveWindow(self.windowOriginal, 400, 50)
+            cv2.moveWindow(self.windowExtract, 800, 50)
+            cv2.moveWindow(self.windowOpened, 400, 400)
+            cv2.moveWindow(self.windowContour, 800, 400)
 
     def grabFrame(self):
         retval, self.imageBGR = self.capture.read()
         self.imageHSV = cv2.cvtColor(self.imageBGR, cv.CV_BGR2HSV)
+        if self.debug:
+            cv2.imshow(self.windowOriginal, self.imageBGR)
 
     def extractColor(self, color):
         hsv = self.calibration.get(color, ((0, 0), (0, 0), (0, 0)))
-        return self.extractFunction.get(color, self.filterHSV)(hsv[0], hsv[1], hsv[2])
+        imageExtract = self.extractFunction.get(color, self.filterHSV)(hsv[0], hsv[1], hsv[2])
+        if self.debug:
+            cv2.imshow(self.windowExtract, imageExtract)
+        return imageExtract
 
     def filterHSV(self, hue, sat, val):
         minHSV = np.array([hue[0], sat[0], val[0]], np.uint8)
@@ -60,18 +88,41 @@ class Vision:
 
     def morphOpen(self, imageIn, size = None):
         if size == None:
-            size = self.imageHSV.shape.width / 100
+            size = imageIn.shape[1] / 100
         element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (size, size))
         imageOut = cv2.erode(imageIn, element)
         imageOut = cv2.dilate(imageOut, element)
         imageOut = cv2.dilate(imageOut, element)
         if self.debug:
-            cv2.imshow(self.win_open, imageOut)
+            cv2.imshow(self.windowOpened, imageOut)
         return imageOut
 
-    def pickContour(self, imageIn):
+    def contourCentroid(self, imageIn):
         contours, hierarchy = cv2.findContours(imageIn, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        imageContour = np.zeros(self.image.shape, np.uint8)
+        imageContour = np.zeros(self.imageHSV.shape, np.uint8)
+        bestContour = None
+        bestArea = 0
+        result = None
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if area > bestArea:
+                bestContour = contour
+                bestArea = area
+        if bestContour != None:
+            moments = cv2.moments(bestContour)
+            # if moments["m00"] != 0:
+            cx = int(moments["m10"] / moments["m00"])
+            cy = int(moments["m01"] / moments["m00"])
+            cv2.drawContours(imageContour, [bestContour], 0, (0, 255, 0), 1)
+            cv2.circle(imageContour, (cx, cy), 1, (0, 0, 255), -1)
+            result = (cx, cy, bestArea)
+        if self.debug:
+            cv2.imshow(self.windowContour, imageContour)
+        return result
+
+    def contourMidpoint(self, imageIn):
+        contours, hierarchy = cv2.findContours(imageIn, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        imageContour = np.zeros(self.imageHSV.shape, np.uint8)
         bestContour = None
         bestArea = 0
         result = None
@@ -86,11 +137,30 @@ class Vision:
                 cx = int(moments["m10"] / moments["m00"])
                 cy = int(moments["m01"] / moments["m00"])
                 cv2.drawContours(imageContour, [bestContour], 0, (0, 255, 0), 1)
-                cv2.circle(imageContour, (cx, cy), 5, (0, 0, 255), -1)
+                cv2.circle(imageContour, (cx, cy), 1, (0, 0, 255), -1)
                 result = (cx, cy, bestArea)
         if self.debug:
-            cv2.imshow("Contour", imageContour)
+            cv2.imshow(self.windowContour, imageContour)
         return result
+
+    # Helper function for object detection
+    def _detectObject(self, color):
+        obj = self.extractColor(color)
+        obj = self.morphOpen(obj)
+        return self.contourCentroid(obj)
+
+    def detectObjects(self, flags):
+        objects = dict()
+        self.grabFrame()
+        if (flags & Feature.Ball):
+            objects[Feature.Ball] = self._detectObject(self.color)
+        if (flags & Feature.Wall):
+            objects[Feature.Wall] = self._detectObject(Color.Yellow)
+        if (flags & Feature.Button):
+            objects[Feature.Button] = self._detectObject(Color.Cyan)
+        if (flags & Feature.Tower):
+            objects[Feature.Tower] = self._detectObject(Color.Purple)
+        return objects
 
     def grab_frame(self):
         retval, self.image = self.capture.read()
@@ -305,4 +375,3 @@ class Vision:
 # # while(True):
 # #     vis.get_feat()
 # #     cv2.waitKey(10)
-
