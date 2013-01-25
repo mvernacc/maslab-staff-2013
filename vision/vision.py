@@ -1,6 +1,7 @@
 import cv
 import cv2
 import numpy as np
+import time
 import threading
 
 class Color:
@@ -31,13 +32,13 @@ class Vision(threading.Thread):
         # Set up the default vision properties
         self.color = Color.Red
         self.features = 0
-        self.detections = dict()
+        self.detections = { Feature.Ball : None, Feature.Wall : None, Feature.Button : None, Feature.Tower : None }
 
         # Set up the thread
         threading.Thread.__init__(self)
 
         # Load calibration settings
-        self.calibration = dict()
+        self.calibration = { }
         f = open("hsv_calibration", "r")
         settings = f.readlines()
         print "".join(settings)[:-1]
@@ -165,7 +166,7 @@ class Vision(threading.Thread):
         return self.contourMidpoint(obj)
 
     def detectObjects(self, features):
-        detections = dict()
+        detections = { Feature.Ball : None, Feature.Wall : None, Feature.Button : None, Feature.Tower : None }
         self.grabFrame()
         if (features & Feature.Ball):
             detections[Feature.Ball] = self._detectObjectCentroid(self.color)
@@ -181,6 +182,7 @@ class Vision(threading.Thread):
         self.running = True
         while self.running:
             self.detections = self.detectObjects(self.features)
+            time.sleep(0)
 
     def stop(self):
         self.running = False
