@@ -1,14 +1,27 @@
 from robot import Robot
+import sys
 import time
 
-robot = Robot()
-robot.start()
-time.sleep(1)
-# robot.motors.left.setSpeed(30)
-# robot.motors.right.setSpeed(30)
-robot.motors.tower.setSpeed(30)
-time.sleep(3)
-# robot.motors.left.setSpeed(0)
-# robot.motors.right.setSpeed(0)
-robot.motors.tower.setSpeed(0)
-robot.stop()
+def main(argv):
+    robot = Robot()
+    robot.start()
+    time.sleep(1)
+    if len(argv) == 0:
+        argv = ['-l', '-r', '-p', '-t']
+    if '-l' in argv:
+        robot.motors.left.setSpeed(30)
+    if '-r' in argv:
+        robot.motors.right.setSpeed(30)
+    if '-p' in argv:
+        robot.motors.roller.setSpeed(30)
+    if '-t' in argv:
+        robot.motors.tower.setSpeed(30)
+    time.sleep(3)
+    # robot.motors.left.setSpeed(0)
+    # robot.motors.right.setSpeed(0)
+    # robot.motors.tower.setSpeed(0)
+    robot.stop()
+   
+if __name__ == "__main__":
+    main(sys.argv[1:])
+
