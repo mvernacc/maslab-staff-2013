@@ -74,24 +74,25 @@ class IR(threading.Thread):
         #self.firRight = arduino.AnalogInput(ard, 6)
         #self.firLeft = arduino.AnalogInput(ard, 7)
 
-        self.nirRight = ir_dist.IR_Dist(arduino, 4)
+        self.nirRight = ir_dist.IR_Dist(arduino, 4, nirRight)
         self.nirRight.load()
-        self.nirLeft = ir_dist.IR_Dist(arduino, 5)
+        self.nirLeft = ir_dist.IR_Dist(arduino, 5, nirLeft)
         self.nirRight.load()
         
-        self.nirLeftVal = 0.0
-        self.nirRightVal = 0.0
-        #self.firLeftVal = 0.0
-        #self.firRightVal = 0.0
+        self.nirLeftVal = self.nirLeft.getDist()
+        self.nirRightVal = self.nirRight.getDist()
+
+        alpha = 0.35
 
     def run(self):
         self.running = True;
         while self.running:
-            self.nirLeftVal = self.nirLeft.getDist();
-            self.nirRightVal = self.nirRight.getDist();
-            #self.firLeftVal = self.firLeft.getValue();
-            #self.firRightVal = self.firRight.getValue();
-    
+            #low pass filter
+            self.nirLeftVal = (self.nirLeftVal*(1-alpha)
+                               + self.nirLeft.getDist()*alpha)
+            self.nirRightVal = (self.nirRightval*(1-alpha)
+                                + self.nirRight.getDist*alpha)
+            
     def stop(self):
         self.running = False
         
@@ -122,12 +123,16 @@ class Motors(threading.Thread):
         while self.running:            
             if self.currentLeft.getValue() > 800:
                 self.stallLeft = True
+                self.left.setSpeed(0)
             if self.currentRight.getValue() > 800:
                 self.stallRight = True
+                self.right.setSpeed(0)
             if self.currentRoller.getValue() > 800:
                 self.stallRoller = True
+                self.tower.setSpeed(0)
             if self.currentTower.getValue() > 800:
                 self.stallTower = True
+                self.tower.setSpeed(0)
 
     def stop(self):
         self.running = False
