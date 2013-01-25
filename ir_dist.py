@@ -7,12 +7,13 @@ import time
 import numpy, pylab # for plotting
 
 class IR_Dist:
-    def __init__(self, ardu, port):
+    def __init__(self, ardu, port, idString):
         self.ain = arduino.AnalogInput(ardu, port)
         self.vals = None
+        self.idString = idString
     def load(self):
         try:
-            f = open('ir_dist_calibration.txt', 'r')
+            f = open( ('ir_dist_calibration_' + self.idString + '.ircalib'), 'r')
             self.vals = pickle.load(f)
         except IOError as e:
             print "Error reading from IR calibration file: {0} {1}".format(e.errno, e.strerror)
@@ -57,7 +58,7 @@ class IR_Dist:
         # sort the list of voltage-distance pairs
         vals = sorted(vals)
         # pickle the list of voltage-distance paris to a file
-        f = open('ir_dist_calibration.txt', 'w')
+        f = open( ('ir_dist_calibration_' + self.idString + '.ircalib'), 'w')
         pickle.dump(vals, f)
 
     def plotCalibrationData(self):
@@ -75,11 +76,11 @@ class IR_Dist:
         pylab.show()
 ####### testing #########
 ardu = arduino.Arduino()
-ir = IR_Dist(ardu, 4)
+ir = IR_Dist(ardu, 4, 'a')
 ardu.run()
 time.sleep(1)
 
-#ir.calibrate()
+#ir.calibrate() # only need to do this once - the results are saved to disk
 ir.load()
 ir.plotCalibrationData()
 while True:
