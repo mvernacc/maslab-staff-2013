@@ -16,6 +16,7 @@ class Robot(threading.Thread):
         self.motors = Motors(self.ard)
         self.bumpers = Bumpers(self.ard)
         self.ir = IR(self.ard)
+        self.pid = arduino.PID(self.ard)
         self.vision = Vision()
         self.vision.color = Color.Red
         self.vision.features = Feature.Ball
