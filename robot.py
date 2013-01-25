@@ -1,6 +1,7 @@
 import arduino # Import the interface library
 import threading, thread
 import time
+import ir_dist
 from vision.vision import Vision, Color, Feature
 
 import cv2
@@ -68,10 +69,15 @@ class IR(threading.Thread):
     def __init__(self, ard):
         threading.Thread.__init__(self)
         
-        self.nirRight = arduino.DigitalInput(ard, 4)
-        self.nirLeft = arduino.DigitalInput(ard, 5)
+        #self.nirRight = arduino.AnalogInput(ard, 4)
+        #self.nirLeft = arduino.Analognput(ard, 5)        
         #self.firRight = arduino.AnalogInput(ard, 6)
         #self.firLeft = arduino.AnalogInput(ard, 7)
+
+        self.nirRight = ir_dist.IR_Dist(arduino, 4)
+        self.nirRight.load()
+        self.nirLeft = ir_dist.IR_Dist(arduino, 5)
+        self.nirRight.load()
         
         self.nirLeftVal = 0.0
         self.nirRightVal = 0.0
@@ -81,8 +87,8 @@ class IR(threading.Thread):
     def run(self):
         self.running = True;
         while self.running:
-            self.nirLeftVal = self.nirLeft.getValue();
-            self.nirRightVal = self.nirRight.getValue();
+            self.nirLeftVal = self.nirLeft.getDist();
+            self.nirRightVal = self.nirRight.getDist();
             #self.firLeftVal = self.firLeft.getValue();
             #self.firRightVal = self.firRight.getValue();
     
