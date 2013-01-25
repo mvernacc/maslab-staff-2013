@@ -19,6 +19,7 @@ def main(argv):
     time.sleep(3)
     # robot.motors.left.setSpeed(0)
     # robot.motors.right.setSpeed(0)
+    # robot.motors.roller.setSpeed(0)
     # robot.motors.tower.setSpeed(0)
     robot.stop()
    
