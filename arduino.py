@@ -469,7 +469,8 @@ class IMU:
     def getRawValues(self):
         return self.arduino.getIMUVals(self.index)
 
-import clamp
+from clamp import clamp
+import math
 
 # Class to interact with PID control of the drive train
 class PID:
@@ -481,11 +482,6 @@ class PID:
         error = clamp(error, -126, 126)
         # Modify the -126 to 127 range to be 0 to 255 for the Arduino
         error = error % 255
-        # """ Error in degrees. """
-        # # Clamp to [0, 360]
-        # error = clamp(error, 0, 360)
-        # # Change the [0, 360] range to [0, 180] so it fits in a byte
-        # error = error / 2
         self.arduino.setPidError(error)
     def start(self):
         self.arduino.pidActiveFlag = True
