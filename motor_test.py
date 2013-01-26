@@ -9,9 +9,9 @@ def main(argv):
     if len(argv) == 0:
         argv = ['-l', '-r', '-p', '-t']
     if '-l' in argv:
-        robot.motors.left.setSpeed(30)
+        robot.motors.left.setSpeed(80)
     if '-r' in argv:
-        robot.motors.right.setSpeed(30)
+        robot.motors.right.setSpeed(80)
     if '-p' in argv:
         robot.motors.roller.setSpeed(30)
     if '-t' in argv:
