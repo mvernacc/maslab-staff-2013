@@ -480,6 +480,10 @@ void loop()
       // Get compass heading
       MagnetometerScaled scaled = compass.ReadScaledAxis();
       float heading = atan2(scaled.YAxis, scaled.XAxis);
+      if (heading < 0) // (-pi,pi] -> [0, 2pi)
+      {
+        heading += 2* M_PI;
+      }
       int headingDegrees = (int)(heading * 180/M_PI);
       headingDegrees = headingDegrees % 360;
       while (counter < 1){
@@ -586,7 +590,8 @@ void moveServos()
   for (int i = 0; i < numServos; i++)
   {
     // Set the servo angle for the ith motor
-    int in = (int) serialRead();
+    //int in = (int) serialRead();
+    unsigned int in = (unsigned int) (serialRead())%256;
     servos[i]->write(in);
   }
 }
