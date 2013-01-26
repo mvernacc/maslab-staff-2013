@@ -1,7 +1,7 @@
-import arduino # Import the interface library
+obot,import arduino # Import the interface library
 import threading, thread
 import time
-import ir_dist
+#import ir_dist
 from vision.vision import Vision, Color, Feature
 
 import cv2
@@ -24,12 +24,30 @@ class Robot(threading.Thread):
         self.time = Timer()
 
         # servoGate = arduino.Servo(ard, pwm)
-        # onOff = arduino.DigitalInput(ard,)
+        go = arduino.DigitalInput(ard,30)
         # redGreen = arduino.DigitalInput(ard,)
 
     def run(self):
         self.ard.start()
         time.sleep(1)
+        chosen = False
+        print "Choose color:  Right = red, Left = green"
+        while chosen == False:
+            if arduino.DigitalInput(ard, 22) == True:
+                #Right bump sensor
+                self.color = Color.Red
+                chosen = True
+            elif arduino.DigitalInput(ard,23) == True:
+                # Left bump sensor
+                self.color = Color.Green
+                chosen = True
+            else:
+                pass
+
+        while go.getValue() == False:
+            print "waiting"
+
+        # if code gets here, go.getValue() == True
         self.motors.start()
         self.bumpers.start()
         self.ir.start()
@@ -42,7 +60,6 @@ class Robot(threading.Thread):
         self.vision.stop()
         time.sleep(1)
         self.ard.stop()
-
 
 class Bumpers(threading.Thread):
 
@@ -75,24 +92,25 @@ class IR(threading.Thread):
         #self.firRight = arduino.AnalogInput(ard, 6)
         #self.firLeft = arduino.AnalogInput(ard, 7)
 
-        self.nirRight = ir_dist.IR_Dist(arduino, 4, nirRight)
-        self.nirRight.load()
-        self.nirLeft = ir_dist.IR_Dist(arduino, 5, nirLeft)
-        self.nirRight.load()
+        # self.nirRight = ir_dist.IR_Dist(arduino, 4, nirRight)
+        # self.nirRight.load()
+        # self.nirLeft = ir_dist.IR_Dist(arduino, 5, nirLeft)
+        # self.nirRight.load()
         
-        self.nirLeftVal = self.nirLeft.getDist()
-        self.nirRightVal = self.nirRight.getDist()
+        # self.nirLeftVal = self.nirLeft.getDist()
+        # self.nirRightVal = self.nirRight.getDist()
 
         alpha = 0.35
 
     def run(self):
         self.running = True;
         while self.running:
+            pass
             #low pass filter
-            self.nirLeftVal = (self.nirLeftVal*(1-alpha)
-                               + self.nirLeft.getDist()*alpha)
-            self.nirRightVal = (self.nirRightval*(1-alpha)
-                                + self.nirRight.getDist*alpha)
+            # self.nirLeftVal = (self.nirLeftVal*(1-alpha)
+            #                    + self.nirLeft.getDist()*alpha)
+            # self.nirRightVal = (self.nirRightval*(1-alpha)
+            #                     + self.nirRight.getDist*alpha)
             
     def stop(self):
         self.running = False
@@ -104,10 +122,10 @@ class Motors(threading.Thread):
         threading.Thread.__init__(self)
 	""" Arduino must have left motor as 0th motor and right motor as 1st motor for PID. """
         # Pin format: Current, Direction, PWM
-        self.left = arduino.Motor(ard, 0, 7, 6)
-        self.right = arduino.Motor(ard, 1, 9, 8)
-        # self.roller = arduino.Motor(ard, current, direction, pwm)
-        self.tower = arduino.Motor(ard, 3, 12, 11)
+        self.left = arduino.Motor(ard, 3, 7, 6)
+        self.right = arduino.Motor(ard, 0, 13, 12)
+        self.roller = arduino.Motor(ard, 1, 11, 10)
+        self.tower = arduino.Motor(ard, 2, 9, 8)
         
         self.currentLeft = arduino.AnalogInput(ard, 0)
         self.currentRight = arduino.AnalogInput(ard, 1)

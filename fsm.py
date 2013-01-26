@@ -14,7 +14,7 @@ class State:
     def next_state(self):
         raise NotImplementedError
     def state_time(self):
-        return time.time() - self.start_time
+        return time.time() - self.start_timevg
     def log(self, message):
         print self.robot.time.string() + "   " + message
 
@@ -30,7 +30,8 @@ class FiniteStateMachine:
         time.sleep(1)
 
     def start(self):
-        self.state = StartState(self.robot)
+       # self.state = StartState(self.robot)
+        self.state = ScanState(self.robot)
         while self.robot.time.elapsed() < 180:
             try:
                 print self.robot.time.string() + " " + self.state.__class__.__name__
