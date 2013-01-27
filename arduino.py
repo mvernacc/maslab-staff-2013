@@ -3,6 +3,7 @@ sys.path.append("../../lib")
 
 import serial, time
 import threading, thread
+import array
 
 # Class that handles communication with the arduino
 # The general idea is to have a thread that constantly sends actuator commands
@@ -97,6 +98,19 @@ class Arduino(threading.Thread):
         #        character across.
         # ; = Special command mode that means "end of packet"
         output = ""
+        if self.pidResetFlag:
+            # output += "P" + chr(self.pidKp) + chr(self.pidKi) + chr(self.pidKd)
+            output += "P" + array.array("f", [self.pidKp, self.pidKi, self.pidKd]).tostring()
+            self.pidResetFlag = False
+        output += "E"
+        if self.pidActiveFlag:
+            if self.pidErrorFlag:
+                output += chr(1) + chr(self.pidError)
+                self.pidErrorFlag = False
+            else:
+                output += chr(2)
+        else:
+            output += chr(0)
         output += "M" + chr(len(self.motorSpeeds))
         for i in self.motorSpeeds:
             output += chr(i)
@@ -112,18 +126,9 @@ class Arduino(threading.Thread):
         output += "A" + chr(len(self.analogOutputs))
         for i in self.analogOutputs:
             output += chr(i)
-        if self.pidResetFlag:
-            output += "C" + chr(self.pidKp) + chr(self.pidKi) + chr(self.pidKd)
-        if self.pidActiveFlag:
-            output += "P"
-            if self.pidErrorFlag:
-                output += chr(1) + chr(self.pidError)
-                self.pidErrorFlag = False
-            else:
-                output += chr(2)
         output += ";"
         self.port.write(output)
-        #print output
+        # print output
 
     # This function reads and interprets a packet received from the arduino
     # and saves any input data into the appropriate arrays
@@ -483,16 +488,21 @@ class PID:
         # Modify the -126 to 127 range to be 0 to 255 for the Arduino
         error = error % 255
         self.arduino.setPidError(error)
-    def start(self):
+    def start(self, kp, ki, kd):
+        self.reset(kp, ki, kd)
         self.arduino.pidActiveFlag = True
     def stop(self):
+        self.reset(0, 0, 0)
         self.arduino.pidActiveFlag = False
     def reset(self, kp, ki, kd):
         """ Resets the integral and changes the constants. Constants should be floats in [0, 2.55]. """
-        kp = clamp(kp, 0, 2.55)
-        ki = clamp(ki, 0, 2.55)
-        kd = clamp(kd, 0, 2.55)
-        self.pidKp = math.floor(kp * 100)
-        self.pidKi = math.floor(ki * 100)
-        self.pidKd = math.floor(kd * 100)
+        # kp = clamp(kp, 0, 2.55)
+        # ki = clamp(ki, 0, 2.55)
+        # kd = clamp(kd, 0, 2.55)
+        # self.arduino.pidKp = int(math.floor(kp * 100))
+        # self.arduino.pidKi = int(math.floor(ki * 100))
+        # self.arduino.pidKd = int(math.floor(kd * 100))
+        self.arduino.pidKp = kp
+        self.arduino.pidKi = ki
+        self.arduino.pidKd = kd
         self.arduino.pidResetFlag = True
