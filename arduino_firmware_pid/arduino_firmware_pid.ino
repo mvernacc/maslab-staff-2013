@@ -14,8 +14,8 @@
 #define inputChar 'I' // For digital/analog input vs. output (init only)
 #define outputChar 'O' // For digital/analog input vs. output (init only)
 #define imuChar 'U'
-#define pidChar 'C'
-#define errorChar 'P'
+#define pidChar 'P'
+#define errorChar 'E'
 #define initChar 'I'
 #define doneChar ';'
 
@@ -60,11 +60,11 @@ class Motor
       pinMode(directionPin, OUTPUT);
       pinMode(pwmPin, OUTPUT);
     }
-    int speed;
+    int adjustment;
     void setSpeed(int s)
     {
-      // Store speed
-      speed = s;
+      // Adjust the speed
+      s += adjustment;
       
       // Clamp to [-126, 127]
       if (s < -126) s = -126;
@@ -643,7 +643,7 @@ class PIDController
       errorDifferential = 0;
       lastTime = millis();
     }
-    void update(int error)
+    void updateError(int error)
     {
       unsigned long currentTime = millis();
       int dt = currentTime - lastTime;
@@ -652,22 +652,40 @@ class PIDController
       errorProportional = error;
       lastTime = currentTime;
     }
-    void adjust()
+    void clearAdjustment()
     {
       float adjustment = kProportional * errorProportional + kIntegral * errorIntegral + kDifferential * errorDifferential;
-      motors[0]->setSpeed(motors[0]->speed - adjustment);
-      motors[1]->setSpeed(motors[1]->speed + adjustment);
+      motors[0]->adjustment = 0;
+      motors[1]->adjustment = 0;
+    }
+    void updateAdjustment()
+    {
+      float adjustment = kProportional * errorProportional + kIntegral * errorIntegral + kDifferential * errorDifferential;
+      motors[0]->adjustment = -adjustment;
+      motors[1]->adjustment = adjustment;
     }
 };
 
 // PID controller object
 PIDController pid = PIDController();
 
+float bytesToFloat(byte b0, byte b1, byte b2, byte b3)
+{
+    float output;
+
+    *((byte*)(&output) + 3) = b0;
+    *((byte*)(&output) + 2) = b1;
+    *((byte*)(&output) + 1) = b2;
+    *((byte*)(&output) + 0) = b3;
+
+    return output;
+}
+
 void pidReset()
 {
-  float kP = (float)(int) serialRead() / 100.0
-  float kI = (float)(int) serialRead() / 100.0
-  float kD = (float)(int) serialRead() / 100.0
+  float kP = bytesToFloat(serialRead(), serialRead(), serialRead(), serialRead());
+  float kI = bytesToFloat(serialRead(), serialRead(), serialRead(), serialRead());
+  float kD = bytesToFloat(serialRead(), serialRead(), serialRead(), serialRead());
   pid.reset(kP, kI, kD);
 }
 
@@ -675,18 +693,27 @@ void pidAdjust()
 {
   switch ((int) serialRead())
   {
-    // New error
+    // Inactive: no error
+    case 0:
+    {
+      pid.clearAdjustment();
+      break;
+    }
+    // Active: new error
     case 1:
+    {
       int e = ((int) serialRead());
       // Make e signed
       if (e > 127)
       {
         e -= 256;
       }
-      pid.update(e);
-    // Old error
-    case 2:
-      pid.adjust();
+      pid.updateError(e);
+      pid.updateAdjustment();
+      break;
+    }
+    // Active: old error
+    case 2:;
       break;
   }
 }
