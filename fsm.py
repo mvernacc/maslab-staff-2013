@@ -14,7 +14,7 @@ class State:
     def next_state(self):
         raise NotImplementedError
     def state_time(self):
-        return time.time() - self.start_timevg
+        return time.time() - self.start_time
     def log(self, message):
         print self.robot.time.string() + "   " + message
 
@@ -152,10 +152,6 @@ class FollowWallState(State):
                 return ScanState(self.robot)
         return ScanState(self.robot)
 
-
-
-maslab_fsm = FiniteStateMachine()
-maslab_fsm.start()
 
 
 
