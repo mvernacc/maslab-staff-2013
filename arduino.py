@@ -99,7 +99,6 @@ class Arduino(threading.Thread):
         # ; = Special command mode that means "end of packet"
         output = ""
         if self.pidResetFlag:
-            # output += "P" + chr(self.pidKp) + chr(self.pidKi) + chr(self.pidKd)
             output += "P" + array.array("f", [self.pidKp, self.pidKi, self.pidKd]).tostring()
             self.pidResetFlag = False
         output += "E"

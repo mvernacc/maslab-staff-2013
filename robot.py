@@ -29,7 +29,10 @@ class Robot(threading.Thread):
 
     def run(self):
         self.ard.start()
+        # while self.ard.portOpened == False:
+        #     time.sleep(0)
         time.sleep(1)
+
         # chosen = False
         # print "Choose color:  Right = red, Left = green"
         # while chosen == False:
@@ -60,7 +63,7 @@ class Robot(threading.Thread):
         self.bumpers.stop()
         self.ir.stop()
         self.vision.stop()
-        time.sleep(1)
+        # time.sleep(1)
         self.ard.stop()
 
 class Bumpers(threading.Thread):
@@ -109,7 +112,6 @@ class IR(threading.Thread):
         self.running = True;
         while self.running:
             time.sleep(0)
-            pass
             #low pass filter
             # self.nirLeftVal = (self.nirLeftVal*(1-alpha)
             #                    + self.nirLeft.getDist()*alpha)
@@ -131,10 +133,10 @@ class Motors(threading.Thread):
         self.roller = arduino.Motor(ard, 1, 11, 10)
         self.tower = arduino.Motor(ard, 2, 9, 8)
         
-        self.currentLeft = arduino.AnalogInput(ard, 0)
-        self.currentRight = arduino.AnalogInput(ard, 1)
-        self.currentRoller = arduino.AnalogInput(ard, 2)
-        self.currentTower = arduino.AnalogInput(ard, 3)
+        self.currentLeft = arduino.AnalogInput(ard, 3)
+        self.currentRight = arduino.AnalogInput(ard, 0)
+        self.currentRoller = arduino.AnalogInput(ard, 1)
+        self.currentTower = arduino.AnalogInput(ard, 2)
 
         self.stallLeft = False
         self.stallRight = False
@@ -152,7 +154,7 @@ class Motors(threading.Thread):
                 self.right.setSpeed(0)
             if self.currentRoller.getValue() > 800:
                 self.stallRoller = True
-                self.tower.setSpeed(0)
+                self.roller.setSpeed(0)
             if self.currentTower.getValue() > 800:
                 self.stallTower = True
                 self.tower.setSpeed(0)
@@ -162,7 +164,7 @@ class Motors(threading.Thread):
         self.running = False
         self.right.setSpeed(0)
         self.left.setSpeed(0)
-        # self.roller.setSpeed(0)
+        self.roller.setSpeed(0)
         self.tower.setSpeed(0)
 
 
