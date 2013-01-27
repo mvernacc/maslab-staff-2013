@@ -48,6 +48,7 @@ class Robot(threading.Thread):
             print "waiting"
 
         # if code gets here, go.getValue() == True
+        self.time.start()
         self.motors.start()
         self.bumpers.start()
         self.ir.start()
