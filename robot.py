@@ -23,32 +23,33 @@ class Robot(threading.Thread):
         self.vision.features = Feature.Ball
         self.time = Timer()
 
-        # servoGate = arduino.Servo(ard, pwm)
+        servoBridge = arduino.Servo(ard, 5)
+        servoGate = arduino.Servo(ard, 4)
+        bridgeBump = arduino.DigitalInput(ard, 27)
         go = arduino.DigitalInput(self.ard, 30)
-        # redGreen = arduino.DigitalInput(ard,)
 
-    def run(self):
+    def start(self):
         self.ard.start()
         # while self.ard.portOpened == False:
         #     time.sleep(0)
         time.sleep(1)
 
-        # chosen = False
-        # print "Choose color:  Right = red, Left = green"
-        # while chosen == False:
-        #     if arduino.DigitalInput(self.ard, 22) == True:
-        #         #Right bump sensor
-        #         self.color = Color.Red
-        #         chosen = True
-        #     elif arduino.DigitalInput(self.ard,23) == True:
-        #         # Left bump sensor
-        #         self.color = Color.Green
-        #         chosen = True
-        #     else:
-        #         pass
+        chosen = False
+        print "Choose color:  Right = red, Left = green"
+        while chosen == False:
+            if arduino.DigitalInput(self.ard, 22) == True:
+                #Right bump sensor
+                self.color = Color.Red
+                chosen = True
+            elif arduino.DigitalInput(self.ard,23) == True:
+                # Left bump sensor
+                self.color = Color.Green
+                chosen = True
+            else:
+                pass
 
-        # while go.getValue() == False:
-        #     print "waiting"
+        while go.getValue() == False:
+            print "waiting"
 
         # if code gets here, go.getValue() == True
         self.time.reset()
@@ -65,6 +66,25 @@ class Robot(threading.Thread):
         self.vision.stop()
         # time.sleep(1)
         self.ard.stop()
+
+    def getFarthestPoint(self):
+        startAngle = ard.getHeading()
+        firData = []
+        self.ir.running = True
+        self.motors.left.setSpeed(50)
+        self.motors.right.setSpeed(-50)
+        while self.time.elapsed() > 1 && ard.getHeading() - startAngle < 0.2:
+            firData.append((self.ir.firRight.getValues(),
+                            self.ir.firLeft.getValues(),
+                            ard.getHeading()))
+        # find maximimum firRight or firLeft value
+        direction = max(firData, lambda x: max(x[0], x[1]))
+        if direction[0] > direction[1]:  # right sensor yields farthest distance
+            self.robot.setDirection(direction[2]-45)
+        else:
+            # left sensor yields farthest distance
+            self.robot.setDirection(direction[2]+45)
+            # or return direction
 
 class Bumpers(threading.Thread):
 
@@ -102,9 +122,16 @@ class IR(threading.Thread):
         # self.nirRight.load()
         # self.nirLeft = ir_dist.IR_Dist(arduino, 5, nirLeft)
         # self.nirRight.load()
+        # self.firRight = ir_dist.IR_Dist(arduino, 6, firRight)
+            # fixed onto right side, looking left
+        # self.firRight.load()
+        # self.firLeft = ir_dist.IR_Dist(aruino, 7, firLeft)
+        # self.firLeft.load()
         
         # self.nirLeftVal = self.nirLeft.getDist()
         # self.nirRightVal = self.nirRight.getDist()
+        # self.firLeftVal = self.firRight.getDist()
+        # self.firRightVal = self.firLeft.getDist()
 
         alpha = 0.35
 
@@ -118,6 +145,7 @@ class IR(threading.Thread):
             # self.nirRightVal = (self.nirRightval*(1-alpha)
             #                     + self.nirRight.getDist*alpha)
             
+
     def stop(self):
         self.running = False
         
