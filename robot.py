@@ -1,4 +1,4 @@
-obot,import arduino # Import the interface library
+import arduino # Import the interface library
 import threading, thread
 import time
 #import ir_dist
@@ -14,46 +14,47 @@ class Robot(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.ard = arduino.Arduino() # Create the Arduino object
+        self.pid = arduino.PID(self.ard)
         self.motors = Motors(self.ard)
         self.bumpers = Bumpers(self.ard)
         self.ir = IR(self.ard)
-        self.pid = arduino.PID(self.ard)
         self.vision = Vision()
         self.vision.color = Color.Red
         self.vision.features = Feature.Ball
         self.time = Timer()
 
         # servoGate = arduino.Servo(ard, pwm)
-        go = arduino.DigitalInput(ard,30)
+        go = arduino.DigitalInput(self.ard, 30)
         # redGreen = arduino.DigitalInput(ard,)
 
     def run(self):
         self.ard.start()
         time.sleep(1)
-        chosen = False
-        print "Choose color:  Right = red, Left = green"
-        while chosen == False:
-            if arduino.DigitalInput(ard, 22) == True:
-                #Right bump sensor
-                self.color = Color.Red
-                chosen = True
-            elif arduino.DigitalInput(ard,23) == True:
-                # Left bump sensor
-                self.color = Color.Green
-                chosen = True
-            else:
-                pass
+        # chosen = False
+        # print "Choose color:  Right = red, Left = green"
+        # while chosen == False:
+        #     if arduino.DigitalInput(self.ard, 22) == True:
+        #         #Right bump sensor
+        #         self.color = Color.Red
+        #         chosen = True
+        #     elif arduino.DigitalInput(self.ard,23) == True:
+        #         # Left bump sensor
+        #         self.color = Color.Green
+        #         chosen = True
+        #     else:
+        #         pass
 
-        while go.getValue() == False:
-            print "waiting"
+        # while go.getValue() == False:
+        #     print "waiting"
 
         # if code gets here, go.getValue() == True
         self.motors.start()
-        self.bumpers.start()
-        self.ir.start()
+        # self.bumpers.start()
+        # self.ir.start()
         self.vision.start()
 
     def stop(self):
+        self.pid.stop()
         self.motors.stop()
         self.bumpers.stop()
         self.ir.stop()
@@ -77,6 +78,7 @@ class Bumpers(threading.Thread):
         self.running = True
         while self.running:
             self.bumped = (self.left.getValue(), self.right.getValue())
+            time.sleep(0)
 
     def stop(self):
             self.running = False
@@ -105,6 +107,7 @@ class IR(threading.Thread):
     def run(self):
         self.running = True;
         while self.running:
+            time.sleep(0)
             pass
             #low pass filter
             # self.nirLeftVal = (self.nirLeftVal*(1-alpha)
@@ -152,6 +155,7 @@ class Motors(threading.Thread):
             if self.currentTower.getValue() > 800:
                 self.stallTower = True
                 self.tower.setSpeed(0)
+            time.sleep(0)
 
     def stop(self):
         self.running = False
