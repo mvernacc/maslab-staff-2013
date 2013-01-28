@@ -22,41 +22,44 @@ class Robot(threading.Thread):
         self.vision.color = Color.Red
         self.vision.features = Feature.Ball
         self.time = Timer()
+        
+        self.servoBridge = arduino.Servo(self.ard, 5)
+        self.servoGate = arduino.Servo(self.ard, 4)
+        self.bridgeBump = arduino.DigitalInput(self.ard, 27)
+        self.go = arduino.DigitalInput(self.ard, 30)
 
-        servoBridge = arduino.Servo(ard, 5)
-        servoGate = arduino.Servo(ard, 4)
-        bridgeBump = arduino.DigitalInput(ard, 27)
-        go = arduino.DigitalInput(self.ard, 30)
+        self.map = {}
+        self.tower = []
+        self.wall = []
+        self.repeatedBarcodes = False
 
-    def start(self):
+    def run(self):
         self.ard.start()
         # while self.ard.portOpened == False:
         #     time.sleep(0)
         time.sleep(1)
 
-        chosen = False
-        print "Choose color:  Right = red, Left = green"
-        while chosen == False:
-            if arduino.DigitalInput(self.ard, 22) == True:
-                #Right bump sensor
-                self.color = Color.Red
-                chosen = True
-            elif arduino.DigitalInput(self.ard,23) == True:
-                # Left bump sensor
-                self.color = Color.Green
-                chosen = True
-            else:
-                pass
-
-        while go.getValue() == False:
-            print "waiting"
-
         # if code gets here, go.getValue() == True
-        self.time.reset()
+        # self.time.reset() moved to fsm
         self.motors.start()
+        self.servoBridge.setAngle(90)
         # self.bumpers.start()
         # self.ir.start()
         self.vision.start()
+        running = True
+        while running == True:
+            if int(self.time.elapsed() % 5) <= 2 && self.time.elapsed() < 120:
+                self.robot.vision.features = Feature.Tower | Feature.Wall | Feature.QRCode
+                # add searching for QRCodes instead?
+                if detections[Feature.QRCode] != None:
+                    for QRcode in detections:
+                        #self.map[QRcode] = respective angle...??
+                if detections[Feature.Tower] != None:
+                    self.tower.append((arduino.getHeading(ard), detections[Feature.Tower]))
+                if detections[Feature.Wall] != None:
+                    self.wall = ((arduino.getHeading(ard), detections[Feature.Wall]))
+             
+        
 
     def stop(self):
         self.pid.stop()
@@ -66,6 +69,28 @@ class Robot(threading.Thread):
         self.vision.stop()
         # time.sleep(1)
         self.ard.stop()
+
+    def reverse(self, bump):
+        bumped = bump
+        self.motor.right.setSpeed(-40)
+        self.motor.left.setSpeed(-40)
+        while self.state_time() < 1:
+            pass
+        if bumped == (True, False) or bumped == (True, True):
+            #left bump sensor hit,turning scheme
+            self.robot.motor.right.setSpeed(-40)
+            self.robot.motor.left.setSpeed(40)
+            while self.state_time() < 0.5:
+                pass
+        elif bumped == (False, True):
+            #right bump sensor hit
+            self.robot.motor.right.setSpeed(-40)
+            self.robot.motor.left.setSpeed(40)
+            
+    # can we return to the state we came from?
+    # This will require us to redo the infrastructure of our code,
+    # or scan state can fix it...
+
 
     def getFarthestPoint(self):
         startAngle = ard.getHeading()
@@ -137,15 +162,32 @@ class IR(threading.Thread):
 
     def run(self):
         self.running = True;
+        self.wall = 'none';
+        
         while self.running:
             time.sleep(0)
             #low pass filter
-            # self.nirLeftVal = (self.nirLeftVal*(1-alpha)
-            #                    + self.nirLeft.getDist()*alpha)
-            # self.nirRightVal = (self.nirRightval*(1-alpha)
-            #                     + self.nirRight.getDist*alpha)
+            self.nirLeftVal = (self.nirLeftVal*(1-alpha)
+                               + self.nirLeft.getDist()*alpha)
+            self.nirRightVal = (self.nirRightVal*(1-alpha)
+                                + self.nirRight.getDist*alpha)
+            self.firLeftVal = (self.firLeftVal*(1-alpha)
+                               + self.firLeft.getDist()*alpha)
+            # looking right
             
+            self.firRightVal = (self.firRightVal*(1-alpha)
+                                + self.firRight.getDist()*alpha)
+            # looking left
 
+            if self.firLeftVal < 12:
+                self.wall = 'right'
+            elif self.firRightVal < 12:
+                self.wall = 'left'
+            elif self.firRightVal < 12 && self.firLeftVal < 12:
+                self.wall = 'front'
+            else:
+                self.wall = 'None'
+            
     def stop(self):
         self.running = False
         
