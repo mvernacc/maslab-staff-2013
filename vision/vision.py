@@ -18,14 +18,17 @@ class Feature:
     Tower  = 0b1000
 
 class Vision(threading.Thread):
-    def __init__(self, color = Color.Red, debug = False):
+    def __init__(self, debug = False):
+        # Set up the thread
+        threading.Thread.__init__(self)
+
         # Store the debug flag
         self.debug = debug
 
         # Set up the video camera
         self.width = 320
         self.height = 240
-        self.capture = cv2.VideoCapture(1)
+        self.capture = cv2.VideoCapture(0)
         self.capture.set(cv.CV_CAP_PROP_FRAME_WIDTH, self.width)
         self.capture.set(cv.CV_CAP_PROP_FRAME_HEIGHT, self.height)
 
@@ -33,9 +36,6 @@ class Vision(threading.Thread):
         self.color = Color.Red
         self.features = 0
         self.detections = { Feature.Ball : None, Feature.Wall : None, Feature.Button : None, Feature.Tower : None }
-
-        # Set up the thread
-        threading.Thread.__init__(self)
 
         # Load calibration settings
         self.calibration = { }
