@@ -1,10 +1,9 @@
-from vision.vision import Vision
+from vision.vision import Vision, Feature
 import cv
 import cv2
 import time
-vis = Vision(False, True)
-#vis.grab_frame()
-#vis.show_img()
-for i in range(200):
-    vis.get_feat()
+vis = Vision(True)
+time_start = time.time()
+while time.time() - time_start < 10:
+    vis.detectObjects(Feature.Ball)
     cv2.waitKey(10)

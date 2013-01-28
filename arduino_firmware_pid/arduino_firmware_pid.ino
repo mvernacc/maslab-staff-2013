@@ -661,8 +661,8 @@ class PIDController
     void updateAdjustment()
     {
       float adjustment = kProportional * errorProportional + kIntegral * errorIntegral + kDifferential * errorDifferential;
-      motors[0]->adjustment = -adjustment;
-      motors[1]->adjustment = adjustment;
+      motors[0]->adjustment = adjustment;
+      motors[1]->adjustment = -adjustment;
     }
 };
 
