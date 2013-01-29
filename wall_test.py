@@ -1,3 +1,5 @@
+# Test of Wall following
+# uses pid to maintain a fixed distance from a wall on the left side of the robot
 from robot import Robot
 from vision.vision import Color, Feature
 import time
@@ -12,24 +14,13 @@ def main(argv):
     robot.motors.left.setSpeed(0)
     robot.motors.right.setSpeed(0)
     robot.pid.start(0.6, 0.0001, 100)
-    # robot.motors.left.setSpeed(100)
-    # robot.motors.right.setSpeed(100)
-    # robot.pid.start(0.4, 0.0001, 100)
     while robot.time.elapsed() < 20:
-        detections = robot.vision.detections
-        if detections[Feature.Ball] != None:
-            # print detections[Feature.Ball]
-            relPos = 2.0 * detections[Feature.Ball][0] / robot.vision.width - 1
-            print relPos
-            robot.pid.setError(int(126 * relPos))
-        # else:
-        #     robot.motors.left.setSpeed(0)
-        #     robot.motors.right.setSpeed(0)
-        #     robot.pid.reset(0, 0, 0)
-    # robot.motors.left.setSpeed(0)
-    # robot.motors.right.setSpeed(0)
-    # robot.motors.tower.setSpeed(0)
-    # robot.pid.stop()
+        d = robot.ir.nirLeftValue # get the distance read by the left near ir sensor
+        error = 30 - d    
+        robot.pid.setError(int(error))
+    robot.motors.left.setSpeed(0)
+    robot.motors.right.setSpeed(0)
+    robot.pid.stop()
     robot.stop()
    
 if __name__ == "__main__":
