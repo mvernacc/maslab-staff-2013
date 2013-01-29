@@ -7,7 +7,7 @@ from vision.vision import Vision, Color, Feature
 import cv2
 import cv
 import sys, getopt
-
+import ir_dist
 
 class Robot(threading.Thread):
     
@@ -28,10 +28,17 @@ class Robot(threading.Thread):
         self.bridgeBump = arduino.DigitalInput(self.ard, 27)
         self.go = arduino.DigitalInput(self.ard, 30)
 
+<<<<<<< HEAD
         self.map = {}
         self.tower = []
         self.wall = []
         self.repeatedBarcodes = False
+=======
+#        servoBridge = arduino.Servo(ard, 5)
+#        servoGate = arduino.Servo(ard, 4)
+#        bridgeBump = arduino.DigitalInput(ard, 27)
+#        go = arduino.DigitalInput(self.ard, 30)
+>>>>>>> 109baade1ebcda770420d724d4184e3ddfaeb192
 
     def run(self):
         self.ard.start()
@@ -39,12 +46,37 @@ class Robot(threading.Thread):
         #     time.sleep(0)
         time.sleep(1)
 
+<<<<<<< HEAD
+=======
+        # chosen = False
+        # print "Choose color:  Right = red, Left = green"
+        # while chosen == False:
+        #     if self.bumpers.right.getValue() == True:
+        #         #Right bump sensor
+        #         self.color = Color.Red
+        #         chosen = True
+        #     elif self.bumpers.left.getValue() == True:
+        #         # Left bump sensor
+        #         self.color = Color.Green
+        #         chosen = True
+        #     else:
+        #         pass
+
+#        while go.getValue() == False:
+#            print "waiting"
+
+>>>>>>> 109baade1ebcda770420d724d4184e3ddfaeb192
         # if code gets here, go.getValue() == True
         # self.time.reset() moved to fsm
         self.motors.start()
+<<<<<<< HEAD
         self.servoBridge.setAngle(90)
         # self.bumpers.start()
         # self.ir.start()
+=======
+        self.bumpers.start()
+        self.ir.start()
+>>>>>>> 109baade1ebcda770420d724d4184e3ddfaeb192
         self.vision.start()
         running = True
         while running == True:
@@ -70,6 +102,7 @@ class Robot(threading.Thread):
         # time.sleep(1)
         self.ard.stop()
 
+<<<<<<< HEAD
     def reverse(self, bump):
         bumped = bump
         self.motor.right.setSpeed(-40)
@@ -102,13 +135,25 @@ class Robot(threading.Thread):
             firData.append((self.ir.firRight.getValues(),
                             self.ir.firLeft.getValues(),
                             ard.getHeading()))
+=======
+#    def getFarthestPoint(self):
+#        startAngle = ard.getHeading()
+#        firData = []
+#        self.ir.running = True
+#        self.motors.left.setSpeed(50)
+#        self.motors.right.setSpeed(-50)
+#        while( (self.time.elapsed() > 1)  and (ard.getHeading() - startAngle < 0.2) ):
+#            firData.append((self.ir.firRight.getValues(),
+#                            self.ir.firLeft.getValues(),
+#                            ard.getHeading()))
+>>>>>>> 109baade1ebcda770420d724d4184e3ddfaeb192
         # find maximimum firRight or firLeft value
-        direction = max(firData, lambda x: max(x[0], x[1]))
-        if direction[0] > direction[1]:  # right sensor yields farthest distance
-            self.robot.setDirection(direction[2]-45)
-        else:
+#        direction = max(firData, lambda x: max(x[0], x[1]))
+#        if direction[0] > direction[1]:  # right sensor yields farthest distance
+#            self.robot.setDirection(direction[2]-45)
+#        else:
             # left sensor yields farthest distance
-            self.robot.setDirection(direction[2]+45)
+ #           self.robot.setDirection(direction[2]+45)
             # or return direction
 
 class Bumpers(threading.Thread):
@@ -138,33 +183,22 @@ class IR(threading.Thread):
     def __init__(self, ard):
         threading.Thread.__init__(self)
         
-        #self.nirRight = arduino.AnalogInput(ard, 4)
-        #self.nirLeft = arduino.Analognput(ard, 5)        
+        self.nirRight = ir_dist.IR_Dist(ard, 5, 'near')
+        self.nirLeft = ir_dist.IR_Dist(ard, 4, 'near')        
         #self.firRight = arduino.AnalogInput(ard, 6)
         #self.firLeft = arduino.AnalogInput(ard, 7)
 
-        # self.nirRight = ir_dist.IR_Dist(arduino, 4, nirRight)
-        # self.nirRight.load()
-        # self.nirLeft = ir_dist.IR_Dist(arduino, 5, nirLeft)
-        # self.nirRight.load()
-        # self.firRight = ir_dist.IR_Dist(arduino, 6, firRight)
-            # fixed onto right side, looking left
+        self.nirRight.load()
+        self.nirRight.load()
         # self.firRight.load()
-        # self.firLeft = ir_dist.IR_Dist(aruino, 7, firLeft)
         # self.firLeft.load()
-        
-        # self.nirLeftVal = self.nirLeft.getDist()
-        # self.nirRightVal = self.nirRight.getDist()
-        # self.firLeftVal = self.firRight.getDist()
-        # self.firRightVal = self.firLeft.getDist()
-
-        alpha = 0.35
 
     def run(self):
         self.running = True;
         self.wall = 'none';
         
         while self.running:
+<<<<<<< HEAD
             time.sleep(0)
             #low pass filter
             self.nirLeftVal = (self.nirLeftVal*(1-alpha)
@@ -188,6 +222,13 @@ class IR(threading.Thread):
             else:
                 self.wall = 'None'
             
+=======
+            time.sleep(0.0001)
+            self.nirLeftVal = self.nirLeft.getDist()
+            self.nirRightVal = self.nirRight.getDist()
+            print 'IR readings: left= ' + str(self.nirLeftVal) + ' cm, right = ' + str(self.nirRightVal) + ' cm'
+
+>>>>>>> 109baade1ebcda770420d724d4184e3ddfaeb192
     def stop(self):
         self.running = False
         
@@ -200,7 +241,7 @@ class Motors(threading.Thread):
         # Pin format: Current, Direction, PWM
         self.left = arduino.Motor(ard, 3, 7, 6)
         self.right = arduino.Motor(ard, 0, 13, 12)
-        self.roller = arduino.Motor(ard, 1, 11, 10)
+        # self.roller = arduino.Motor(ard, 1, 5, 4)
         self.tower = arduino.Motor(ard, 2, 9, 8)
         
         self.currentLeft = arduino.AnalogInput(ard, 3)
@@ -215,17 +256,22 @@ class Motors(threading.Thread):
 
     def run(self):
         self.running = True
-        while self.running:            
+        while self.running:
+            print self.currentTower.getValue()
             if self.currentLeft.getValue() > 800:
+                print "Stalling left"
                 self.stallLeft = True
                 self.left.setSpeed(0)
             if self.currentRight.getValue() > 800:
+                print "Stalling right"
                 self.stallRight = True
                 self.right.setSpeed(0)
             if self.currentRoller.getValue() > 800:
+                print "Stalling roller"
                 self.stallRoller = True
                 self.roller.setSpeed(0)
             if self.currentTower.getValue() > 800:
+                print "Stalling tower"
                 self.stallTower = True
                 self.tower.setSpeed(0)
             time.sleep(0)
@@ -234,7 +280,7 @@ class Motors(threading.Thread):
         self.running = False
         self.right.setSpeed(0)
         self.left.setSpeed(0)
-        self.roller.setSpeed(0)
+        # self.roller.setSpeed(0)
         self.tower.setSpeed(0)
 
 

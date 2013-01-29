@@ -253,6 +253,7 @@ class Arduino(threading.Thread):
         # Digital input component of initializing
         output += "DI"
         numDigital = len(self.digitalInputPorts)
+	print numDigital
         output += chr(numDigital)
         for i in range(numDigital):
             output+= chr(self.digitalInputPorts[i])
