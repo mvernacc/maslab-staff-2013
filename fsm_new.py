@@ -137,10 +137,13 @@ class WanderState(State):
         self.robot.vision.features = Feature.Ball
         self.robot.pid.start(5, 0, 0)
         
-        if abs(goal - self.robot.ir.nirLeftVal) < abs(goal - self.robot.ir.nirRightVal):    
+        #if abs(goal - self.robot.ir.nirLeftVal) < abs(goal - self.robot.ir.nirRightVal):
+        if self.robot.ir.nirLeftVal < self.robot.ir.nirRightVal:
             while self.state_time() < 10:
                 error = goal - self.robot.ir.nirLeftVal
                 self.robot.pid.setError(error)
+                if True in self.robot.bumpers.bumped:
+                    self.robot.reverse(self.robot.bumpers.bumped)
                 if self.robot.vision.detections[Feature.Ball] != None:
                     self.robot.pid.stop()
                     return FollowBallState(self.robot)
@@ -150,6 +153,8 @@ class WanderState(State):
             while self.state_time() < 10:
                 error = self.robot.ir.nirRightVal - goal
                 self.robot.pid.setError(error)
+                if True in self.robot.bumpers.bumped:
+                    self.robot.reverse(self.robot.bumpers.bumped)
                 if self.robot.vision.detections[Feature.Ball] != None:
                     self.robot.pid.stop()
                     return FollowBallState(self.robot)
@@ -162,8 +167,8 @@ class WanderState(State):
         self.robot.motor.right.setSpeed(50 + direction*5)
         while self.state_time() < 7:
             if True in self.robot.bumpers.bumped:
-                return ReverseState(self.robot, self.robot.bumpers.bumped)
-            if Feature.Ball in self.robot.vision.detections:
+                self.robot.reverse(self.robot.bumpers.bumped)
+            if self.robot.vision.detections[Feature.Ball] != None:
                 return FollowBallState(self.robot)
         self.repeatedBarcodes = False
         return ScanState(self.robot)
@@ -186,8 +191,7 @@ class FollowBallState(State):
             if detections[Feature.Ball] != None:
                 error = int(126 * (2.0 * self.robot.vision.detections[Feature.Ball][0] / self.robot.vision.width - 1))
                 # self.log(str(error))
-                self.robot.motors.right.setSpeed(60 - angle)
-                self.robot.motors.left.setSpeed(60 + angle)
+                self.robot.pid.setError(error)
             else:
                 # Move forward short distance
                 self.log("Charging...")
@@ -195,100 +199,119 @@ class FollowBallState(State):
                 while time.time() - start_time < 0.1:
                     self.robot.motor.left.setSpeed(40)
                     self.robot.motor.right.setSpeed(40)
-                    # check if the pick up motor is okay
-                    if self.robot.motor.stallPickUp():
-                        self.robot.motor.motorPickUp.setSpeed(0)
-                    return ScanState(self.robot)
+                self.robot.pid.stop()
                 return ScanState(self.robot)
-        return ScanState(self.robot)
+        # return ScanState(self.robot)
 
 class PushButton(State):
     def next_state(self):
-        aligned = False:
+        aligned = 0
+        self.robot.motors.left.setSpeed(0)
+        self.robot.motors.right.setSpeed(0)
         self.robot.vision.features = Feature.Button
+        self.robot.pid.start(0.7, 0, 50)
         while self.robot.time.elapsed() < 120:
+            if aligned > 10:
+                break
             detections = self.robot.vision.detection
             if True in self.robot.bumpers.bumped:
-                return ReverseState(self.robot, self.robot.bumpers.bumped)
-            if Feature.Button in detections:
-                if aligned == False:
-                    button_pos = 30 * (2 * self.robot.vision.detections[Feature.Button][0]/self.robot.vision.width - 1)
-                    angle = int(button_pos)
-                    self.log(str(angle))
-                    self.robot.motors.right.setSpeed(60 - angle)
-                    self.robot.motors.left.setSpeed(60 + angle)
-                    if angle == 0:
-                        aligned = True
-        if aligned == True:
-            # ideally pushes the button 4 times
-            counter = 0
-            while counter < 4
-            self.robot.motors.right.setSpeed(60)
-            self.robot.motors.left.setSpeed(60)
-            self.robot.time.delay(1)
-            self.robot.motors.stop()
-            self.robot.motors.right.setSpeed(-60)
-            self.roboo.motors.left.setSpeed(-60)
-            self.robot.time.delay(1)
-            self.robot.motors.stop()
+                self.robot.reverse(self.robot.bumpers.bumped)
+            if detections[Feature.Button] != None:
+                error = int(126 * (2.0 * detections[Feature.Button][0]/self.robot.vision.width - 1))
+                if error != 0:
+                    aligned = 0
+                    self.robot.pid.setError(error)
+                else:
+                    aligned += 1
+        self.robot.pid.stop()
+        # ideally pushes the button 4 times
+        counter = 0
+        while counter < 4
+        self.robot.motors.right.setSpeed(60)
+        self.robot.motors.left.setSpeed(60)
+        self.robot.time.delay(1)
+        self.robot.motors.right.setSpeed(0)
+        self.robot.motors.left.setSpeed(0)
+        self.robot.motors.right.setSpeed(-60)
+        self.roboo.motors.left.setSpeed(-60)
+        self.robot.time.delay(1)
+        self.robot.motors.right.setSpeed(0)
+        self.robot.motors.left.setSpeed(0)
+        return ScanState(self.robot)
             
 
 class YellowWallFollowState(State):
     def next_state(self):
         # PID on wall's visual position
         self.robot.vision.features = Feature.Wall
+        self.robot.motors.right.setSpeed(60)
+        self.robot.motors.left.setSpeed(60)
+        self.robot.pid.start(0.7, 0, 50)
         while self.robot.time.elapsed() < 180:
+            detections = self.robot.vision.detections
             if True in self.robot.bumpers.bumped:
-                self.robot.reverse(self.robot.bumpers.bumped)
-            if Feature.Wall in self.robot.vision.detections:
-                wall_pos = 30 * (2 * self.robot.vision.detections[Feature.Wall][0] / self.robot.vision.width - 1)
-                angle = int(wall_pos)
-                self.log(str(angle))
-                self.robot.motors.right.setSpeed(60 - angle)
-                self.robot.motor.left.setSpeed(60 + angle)
+                self.robot.pid.stop()
+                return TowerShoot(self.robot)
+            if detections[Feature.Wall] != None:
+                error = int(126 * (2.0 * detections[Feature.Wall][0] / self.robot.vision.width - 1))
+                self.robot.pid.setError(error)
             else:
-                # Move back short distance
-                self.log("Reversing...")
-                start_time = time.time()
-                while time.time() - start_time < 2:
-                    self.robot.motor.left.setSpeed(-40)
-                    self.robot.motor.right.setSpeed(-40)
+                self.robot.pid.stop()
                 return ScanState(self.robot)
+        self.robot.pid.stop()
         return ScanState(self.robot)
 
 class AlignTower(State):
     def next_state(self):
-        aligned = False:
-            #PID
+        aligned = 0
+        self.robot.motors.left.setSpeed(60)
+        self.robot.motors.right.setSpeed(60)
+        self.robot.vision.features = Feature.Button
+        self.robot.pid.start(0.7, 0, 50)
+        while self.robot.time.elapsed() < 120:
+            if aligned > 10:
+                break
+            detections = self.robot.vision.detection
             if True in self.robot.bumpers.bumped:
                 self.robot.reverse(self.robot.bumpers.bumped)
-                return AlignTower(self.robot)
-            if Feature.Towerin self.robot.vision.detections:
-                while aligned == False:
-                    tower_pos = 30 * (2 * self.robot.vision.detections[Feature.Tower][0] / self.robot.vision.width - 1)
-                    angle = int(wall_pos)
-                    self.log(str(angle))
-                    self.robot.motors.right.setSpeed(60 - angle)
-                    self.robot.motors.left.setSpeed(60 + angle)
-                    if angle == 0:
-                        aligned = True:
+            if detections[Feature.Tower] != None:
+                error = int(126 * (2.0 * detections[Feature.Tower][0]/self.robot.vision.width - 1))
+                if error != 0:
+                    aligned = 0
+                    self.robot.pid.setError(error)
+                else:
+                    aligned += 1
+        self.robot.pid.stop()
         # Lower the servo
+        self.robot.servoBridge.setAngle(30) # ??? NEED TO CHECK ANGLE
         # Drive forward
-        if self.robot.bumpers.shooter == True:
-            return TowerShoot(self.robot)
-        elif True in self.robot.bumpers.bumped:
-            self.robot.reverse(self.robot.bumpers.bumped)
-            return AlignTower(self.robot)
-        else:
-            # Back Up
-            self.robot.reverse(self.robot.bumpers.bumped)
-            return AlignTower(self.robot)
+        self.robot.motors.left.setSpeed(60)
+        self.robot.motors.right.setSpeed(60)
+        while self.robot.bridgeBump.getValue() == False and self.state_time() < 10:
+            if True in self.robot.bumpers.bumped:
+                self.robot.reverse(self.robot.bumpers.bumped)
+            time.sleep(0)
+        return TowerShoot(self.robot)
+        # if self.robot.bumpers.shooter == True:
+        #     return TowerShoot(self.robot)
+        # elif True in self.robot.bumpers.bumped:
+        #     self.robot.reverse(self.robot.bumpers.bumped)
+        #     return AlignTower(self.robot)
+        # else:
+        #     # Back Up
+        #     self.robot.reverse(self.robot.bumpers.bumped)
+        #     return AlignTower(self.robot)
                 
 class TowerShoot(State):
     # bridge is already lowered
+    self.robot.servoBridge.setAngle(30) # ??? NEED TO CHECK ANGLE
+    self.robot.servoGate.setAngle(30) # ??? NEED TO CHECK ANGLE
     # top servo gate is lifted
     self.robot.motors.right.setSpeed(0)
     self.robot.motors.left.setSpeed(0)
+    time.sleep(5)
+    self.robot.servoBridge.setAngle(0) # ??? NEED TO CHECK ANGLE
+    self.robot.servoGate.setAngle(0) # ??? NEED TO CHECK ANGLE
     return ScanState(self.robot)    #slightly modified to be explicitly double checking?
 
 
