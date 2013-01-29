@@ -8,9 +8,9 @@ from vision.vision import Vision, Color, Feature
 # max abs(speed) = 126, by the way
 
 class State:
-    def __init__(self, fsm, options = None):
-        # Reference the FSM to access properties
-        self.fsm = fsm
+    def __init__(self, robot, options = None):
+        # Reference the robot to access properties
+        self.robot = robot
         self.options = options
         self.start_time = time.time()
     def next_state(self):
@@ -18,7 +18,7 @@ class State:
     def state_time(self):
         return time.time() - self.start_time
     def log(self, message):
-        print "  " + message
+        print self.robot.time.string() + " - " + message
 
 class FiniteStateMachine:
     def __init__(self, color = Color.Red):
@@ -31,27 +31,8 @@ class FiniteStateMachine:
         self.robot = Robot()
         self.map = {}
         
-
     def start(self):
-        #self.state = StartState(self.robot)
-        chosen = False
-        print "Choose color:  Right = red, Left = green"
-        while chosen == False:
-            if arduino.DigitalInput(self.ard, 22) == True:
-                #Right bump sensor
-                self.color = Color.Red
-                chosen = True
-            elif arduino.DigitalInput(self.ard, 23) == True:
-                # Left bump sensor
-                self.color = Color.Green
-                chosen = True
-            else:
-                pass
-
-        while self.robot.go.getValue() == False:
-            print "waiting"
-        
-        self.state = scanState(self.robot)
+        self.state = ScanState(self.robot)
         self.robot.start()
         self.robot.time.reset()
         time.sleep(1)
@@ -87,7 +68,7 @@ class ScanState(State):
         # take that off the list.
         # follow balls if they are seen
 
-        if self.scoring = False:
+        if self.scoring == False:
             self.robot.vision.features = Feature.Ball | Feature.Button
             #if self.robot.time.elasped() % 10 == 0:
             #    self.robot.vision.features = Feature.Ball | Feature.Button | Feature.Tower | Feature.Wall
@@ -118,9 +99,9 @@ class ScanState(State):
                 detections = self.robot.vision.detections
                 if True in self.robot.bumpers.bumped:
                     self.robot.reverse(self.robot.bumpers.bumped)
-                if detections[Feature.Tower]:
+                if detections[Feature.Tower] != None:
                         return AlignTowerState(self.robot)
-                elif detections[Feature.Wall]:
+                elif detections[Feature.Wall] != None:
                         return YellowFollowWallState(self.robot)
                 else:
                     pass
@@ -130,9 +111,9 @@ class WanderState(State):
     def next_state(self):
         # Move forward
         if self.robot.repeatedBarcodes == False:
-            WallFollow(self.robot)
+            return WallFollow(self.robot)
         else:
-            GoFarAway(self.robot)
+            return GoFarAway(self.robot)
 #        self.robot.motor.left.setSpeed(50)
 #        self.robot.motor.right.setSpeed(50)
 #        self.robot.vision.features = Feature.Ball
@@ -151,33 +132,28 @@ class WanderState(State):
         self.robot.motor.left.setSpeed(speed)
         self.robot.motor.right.setSpeed(speed)
 
-        goal = 10   # 10 cm away from the wall
-        correction = 4
+        goal = 20   # 10 cm away from the wall
 
-        # pid = PID.PID()
-        # pid.start()
+        self.robot.vision.features = Feature.Ball
+        self.robot.pid.start(5, 0, 0)
         
-        if abs(10-self.robot.ir.nirLeftVal) < abs(10-self.robot.ir.nirRightVal):    
+        if abs(goal - self.robot.ir.nirLeftVal) < abs(goal - self.robot.ir.nirRightVal):    
             while self.state_time() < 10:
-                error = self.robot.ir.nirLeftVal - goal
-                # PID.setError(error)
-                self.robot.motor.left.setSpeed(speed - correction*error)
-                self.robot.motor.right.setSpeed(speed + correction*error)
-                self.robot.vision.grabFrame()
-                if self.robot.vision.detectObjects(Feature.Ball) != None:
+                error = goal - self.robot.ir.nirLeftVal
+                self.robot.pid.setError(error)
+                if self.robot.vision.detections[Feature.Ball] != None:
+                    self.robot.pid.stop()
                     return FollowBallState(self.robot)
-            # pid.stop()
+            self.robot.pid.stop()
             return ScanState(self.robot)
         else:
             while self.state_time() < 10:
-                # pid.setError(error)
                 error = self.robot.ir.nirRightVal - goal
-                self.robot.motor.left.setSpeed(speed + correction*error)
-                self.robot.motor.right.setSpeed(speed - correction*error)
-                self.robot.vision.grabFrame()
-                if self.robot.vision.detectObjects(Feature.Ball) != None:
+                self.robot.pid.setError(error)
+                if self.robot.vision.detections[Feature.Ball] != None:
+                    self.robot.pid.stop()
                     return FollowBallState(self.robot)
-            # pid.stop()        
+            self.robot.pid.stop()        
             return ScanState(self.robot)
             
     def GoFarAway(self):
@@ -202,15 +178,14 @@ class FollowBallState(State):
     def next_state(self):
         # PID on ball's visual position
         self.robot.vision.features = Feature.Ball
-        while self.fsm.time_elapsed() < 180:
-            # why is this necessary?
-            detections = self.robot.vision.detection
+        self.robot.pid.start(0.5, 0.0001, 50)
+        while True: # Possibly limit time spent following ball?
+            detections = self.robot.vision.detections
             if True in self.robot.bumpers.bumped:
-                return ReverseState(self.robot, self.robot.bumpers.bumped)
-            if Feature.Ball in detections:
-                ball_pos = 30 * (2 * self.robot.vision.detections[Feature.Ball][0] / self.robot.vision.width - 1)
-                angle = int(ball_pos)
-                self.log(str(angle))
+                self.robot.reverse(self.robot.bumpers.bumped)
+            if detections[Feature.Ball] != None:
+                error = int(126 * (2.0 * self.robot.vision.detections[Feature.Ball][0] / self.robot.vision.width - 1))
+                # self.log(str(error))
                 self.robot.motors.right.setSpeed(60 - angle)
                 self.robot.motors.left.setSpeed(60 + angle)
             else:
@@ -264,7 +239,7 @@ class YellowWallFollowState(State):
         self.robot.vision.features = Feature.Wall
         while self.robot.time.elapsed() < 180:
             if True in self.robot.bumpers.bumped:
-                return ReverseState(self.robot, self.robot.bumpers.bumped)
+                self.robot.reverse(self.robot.bumpers.bumped)
             if Feature.Wall in self.robot.vision.detections:
                 wall_pos = 30 * (2 * self.robot.vision.detections[Feature.Wall][0] / self.robot.vision.width - 1)
                 angle = int(wall_pos)
@@ -286,7 +261,8 @@ class AlignTower(State):
         aligned = False:
             #PID
             if True in self.robot.bumpers.bumped:
-                return ReverseState(self.robot, self.robot.bumpers.bumped)
+                self.robot.reverse(self.robot.bumpers.bumped)
+                return AlignTower(self.robot)
             if Feature.Towerin self.robot.vision.detections:
                 while aligned == False:
                     tower_pos = 30 * (2 * self.robot.vision.detections[Feature.Tower][0] / self.robot.vision.width - 1)
@@ -301,11 +277,12 @@ class AlignTower(State):
         if self.robot.bumpers.shooter == True:
             return TowerShoot(self.robot)
         elif True in self.robot.bumpers.bumped:
-            return ReverseState(self.robot)
+            self.robot.reverse(self.robot.bumpers.bumped)
+            return AlignTower(self.robot)
         else:
             # Back Up
-            return ReverseState(self.robot)
-            # return AlignTower(self.robot)
+            self.robot.reverse(self.robot.bumpers.bumped)
+            return AlignTower(self.robot)
                 
 class TowerShoot(State):
     # bridge is already lowered
