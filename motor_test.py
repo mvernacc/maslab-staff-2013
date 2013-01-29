@@ -13,10 +13,10 @@ def main(argv):
     if '-r' in argv:
         robot.motors.right.setSpeed(80)
     if '-p' in argv:
-        robot.motors.roller.setSpeed(30)
+        robot.motors.roller.setSpeed(50)
     if '-t' in argv:
-        robot.motors.tower.setSpeed(30)
-    time.sleep(3)
+        robot.motors.tower.setSpeed(50)
+    time.sleep(5)
     # robot.motors.left.setSpeed(0)
     # robot.motors.right.setSpeed(0)
     # robot.motors.roller.setSpeed(0)

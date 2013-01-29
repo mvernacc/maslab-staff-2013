@@ -11,7 +11,7 @@ def main(argv):
     time.sleep(1)
     robot.motors.left.setSpeed(0)
     robot.motors.right.setSpeed(0)
-    robot.pid.start(0.6, 0.0001, 100)
+    robot.pid.start(0.7, 0.0005, 50)
     # robot.motors.left.setSpeed(100)
     # robot.motors.right.setSpeed(100)
     # robot.pid.start(0.4, 0.0001, 100)
@@ -20,7 +20,7 @@ def main(argv):
         if detections[Feature.Ball] != None:
             # print detections[Feature.Ball]
             relPos = 2.0 * detections[Feature.Ball][0] / robot.vision.width - 1
-            print relPos
+            # print relPos
             robot.pid.setError(int(126 * relPos))
         # else:
         #     robot.motors.left.setSpeed(0)

@@ -15,6 +15,8 @@ class IR_Dist:
         try:
             f = open( ('ir_dist_calibration_' + self.idString + '.ircalib'), 'r')
             self.vals = pickle.load(f)
+            print 'loaded IR distance calibration from ' + ('ir_dist_calibration_' + self.idString + '.ircalib')
+            print self.vals
         except IOError as e:
             print "Error reading from IR calibration file: {0} {1}".format(e.errno, e.strerror)
         except:
@@ -30,8 +32,9 @@ class IR_Dist:
         """ Converts a voltage reading to a distance based on the calibration data"""
         if self.vals == None:
             print "IR_Dist: must calibrate and load before converting voltage to distance"
+            self.load()
         i = 0
-        while self.vals[i][0] < volt and i < (len(self.vals)-1):
+        while (i < (len(self.vals)-1)) and (self.vals[i][0] < volt):
             i = i + 1
         if i == 0: return self.vals[0][1]
         elif i == (len(self.vals)-1): return self.vals[-1][1]
@@ -75,13 +78,14 @@ class IR_Dist:
         pylab.title('IR Distance Sensor Calibration Data')
         pylab.show()
 ####### testing #########
-ardu = arduino.Arduino()
-ir = IR_Dist(ardu, 4, 'a')
-ardu.run()
-time.sleep(1)
+def test():
+	ardu = arduino.Arduino()
+	ir = IR_Dist(ardu, 4, 'a')
+	ardu.run()
+	time.sleep(1)
 
-#ir.calibrate() # only need to do this once - the results are saved to disk
-ir.load()
-ir.plotCalibrationData()
-while True:
-    print ir.getDist()
+	ir.calibrate() # only need to do this once - the results are saved to disk
+	ir.load()
+	ir.plotCalibrationData()
+	while True:
+    		print ir.getDist()
