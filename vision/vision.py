@@ -182,7 +182,7 @@ class Vision(threading.Thread):
         self.running = True
         while self.running:
             self.detections = self.detectObjects(self.features)
-            time.sleep(0)
+            time.sleep(0.01)
 
     def stop(self):
         self.running = False

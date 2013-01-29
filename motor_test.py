@@ -6,8 +6,8 @@ def main(argv):
     robot = Robot()
     robot.start()
     time.sleep(1)
-    if len(argv) == 0:
-        argv = ['-l', '-r', '-p', '-t']
+    # if len(argv) == 0:
+    #     argv = ['-l', '-r', '-p', '-t']
     if '-l' in argv:
         robot.motors.left.setSpeed(80)
     if '-r' in argv:
