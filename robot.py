@@ -21,7 +21,7 @@ class Robot(threading.Thread):
         self.time = Timer()
         self.servoBridge = arduino.Servo(self.ard, 5)
         self.servoGate = arduino.Servo(self.ard, 4)
-        self.bridgeBump = arduino.DigitalInput(self.ard, 27)
+        # self.bridgeBump = arduino.DigitalInput(self.ard, 27)
 
         # Properties for match
         self.ready = False
@@ -40,7 +40,7 @@ class Robot(threading.Thread):
 
         self.motors.start()
         self.servoGate.setAngle(20)
-        self.servoBridge.setAngle(90)
+        # self.servoBridge.setAngle(90)
         self.bumpers.start()
         self.ir.start()
         self.vision.start()
@@ -164,8 +164,8 @@ class Motors(threading.Thread):
         # Pin format: Current, Direction, PWM
         self.left = arduino.Motor(ard, 12, 7, 6)
         self.right = arduino.Motor(ard, 15, 13, 12)
-        self.roller = arduino.Motor(ard, 14, 5, 4)
-        self.tower = arduino.Motor(ard, 13, 9, 8)
+        self.roller = arduino.Motor(ard, 14, 11, 10)
+        self.tower = arduino.Motor(ard, 13, 9, 8)  
 
         self.roller.setSpeed(0)
         self.tower.setSpeed(0)
@@ -191,11 +191,11 @@ class Motors(threading.Thread):
                 print "Stalling right"
                 self.stallRight = True
                 self.right.setSpeed(0)
-            if self.currentRoller.getValue() > 800:
+            if self.currentRoller.getValue() > 700:
                 print "Stalling roller"
                 self.stallRoller = True
                 self.roller.setSpeed(0)
-            if self.currentTower.getValue() > 800:
+            if self.currentTower.getValue() > 700:
                 print "Stalling tower"
                 self.stallTower = True
                 self.tower.setSpeed(0)
