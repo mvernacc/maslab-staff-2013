@@ -33,8 +33,8 @@ class FiniteStateMachine:
             time.sleep(0.1)
         # Start the roller and tower motors running here
         # These stay constantly running for the entire duration of the match
-        self.robot.motors.roller.setSpeed(20)
-        self.robot.motors.tower.setSpeed(20)
+        #self.robot.motors.roller.setSpeed(20)
+        #self.robot.motors.tower.setSpeed(20)
         self.robot.time.reset()
         while self.robot.time.elapsed() < 180:
             try:
@@ -111,7 +111,7 @@ class ScanState(State):
                     return YellowFollowWallState(self.robot)
                 else:
                     pass
-            return FindState(self.robot)
+            return WanderState(self.robot)
 
 class WanderState(State):
     def next_state(self):

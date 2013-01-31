@@ -224,11 +224,6 @@ class Arduino(threading.Thread):
         output += "I"
         # Motor component of initializing
         output += "M"
-        # The 'I' command mode means initializing data
-        output = ""
-        output += "I"
-        # Motor component of initializing
-        output += "M"
         numMotors = len(self.motorPorts)
         output += chr(numMotors)
         for i in range(numMotors):
@@ -253,7 +248,6 @@ class Arduino(threading.Thread):
         # Digital input component of initializing
         output += "DI"
         numDigital = len(self.digitalInputPorts)
-	print numDigital
         output += chr(numDigital)
         for i in range(numDigital):
             output+= chr(self.digitalInputPorts[i])

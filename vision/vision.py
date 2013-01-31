@@ -18,8 +18,9 @@ class Feature:
     Tower  = 0b1000
 
 class Vision(threading.Thread):
-    def __init__(self, debug = False):
+    def __init__(self, debug = False, index = 0):
         # Set up the thread
+       
         threading.Thread.__init__(self)
 
         # Store the debug flag
@@ -28,7 +29,7 @@ class Vision(threading.Thread):
         # Set up the video camera
         self.width = 320
         self.height = 240
-        self.capture = cv2.VideoCapture(0)
+        self.capture = cv2.VideoCapture(index)
         self.capture.set(cv.CV_CAP_PROP_FRAME_WIDTH, self.width)
         self.capture.set(cv.CV_CAP_PROP_FRAME_HEIGHT, self.height)
 
@@ -117,6 +118,7 @@ class Vision(threading.Thread):
                 bestContour = contour
                 bestArea = area
         if bestContour != None:
+            # print bestArea
             moments = cv2.moments(bestContour)
             # if moments["m00"] != 0:
             cx = int(moments["m10"] / moments["m00"])
@@ -140,6 +142,7 @@ class Vision(threading.Thread):
                 bestContour = contour
                 bestArea = area
         if bestContour != None:
+            # print bestArea
             l = bestContour[bestContour[:,:,0].argmin()][0][0]
             r = bestContour[bestContour[:,:,0].argmax()][0][0]
             t = bestContour[bestContour[:,:,1].argmin()][0][1]
@@ -186,6 +189,8 @@ class Vision(threading.Thread):
 
     def stop(self):
         self.running = False
+
+### BELOW HERE: OLD STUFF ###
 
     def grab_frame(self):
         retval, self.image = self.capture.read()
