@@ -44,6 +44,8 @@ class Stepper
     }
 };
 
+bool pidActive = false;
+
 // Define a class that manages a motor (through the
 // Dagu 4-channel motor controller board)
 class Motor
@@ -79,7 +81,7 @@ class Motor
     }
     void setSpeed(int s)
     {
-      if (pid.active) return;
+      if (pidActive) return;
       
       // Store the speed
       _speed = s;
@@ -126,8 +128,6 @@ int numDigitalOutput = 0;
 int numAnalogInput = 0;
 int numAnalogOutput = 0;
 int numImus = 0;
-
-int resetCounter = 0;
 
 
 // Define a serial read that actually blocks
@@ -693,14 +693,13 @@ void pidAdjust()
     // Inactive: no error
     case 0:
     {
-      pid.active = false;
-      // pid.clearAdjustment();
+      pidActive = false;
       break;
     }
     // Active: new error
     case 1:
     {
-      pid.active = true;
+      pidActive = true;
       int e = ((int) serialRead());
       // Make e signed
       if (e > 127)
@@ -713,7 +712,7 @@ void pidAdjust()
     }
     // Active: old error
     case 2:
-      pid.active = true;
+      pidActive = true;
       pid.updateSpeeds(0);
       break;
   }
