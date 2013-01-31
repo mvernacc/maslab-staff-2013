@@ -20,7 +20,6 @@ class Feature:
 class Vision(threading.Thread):
     def __init__(self, debug = False, index = 0):
         # Set up the thread
-       
         threading.Thread.__init__(self)
 
         # Store the debug flag

@@ -27,12 +27,12 @@ def setValMax(value):
     val[1] = value
     return
 def setHSVRange(hue_range, sat_range, val_range):
-    cv2.setTrackbarPos(hsvNames[0], toolWindow, hue_range[0])
-    cv2.setTrackbarPos(hsvNames[1], toolWindow, hue_range[1])
-    cv2.setTrackbarPos(hsvNames[2], toolWindow, sat_range[0])
-    cv2.setTrackbarPos(hsvNames[3], toolWindow, sat_range[1])
-    cv2.setTrackbarPos(hsvNames[4], toolWindow, val_range[0])
-    cv2.setTrackbarPos(hsvNames[5], toolWindow, val_range[1])
+    cv2.setTrackbarPos(hsvNames[0], imageWindow, hue_range[0])
+    cv2.setTrackbarPos(hsvNames[1], imageWindow, hue_range[1])
+    cv2.setTrackbarPos(hsvNames[2], imageWindow, sat_range[0])
+    cv2.setTrackbarPos(hsvNames[3], imageWindow, sat_range[1])
+    cv2.setTrackbarPos(hsvNames[4], imageWindow, val_range[0])
+    cv2.setTrackbarPos(hsvNames[5], imageWindow, val_range[1])
 
 def onMouse(event, x, y, a, b):
     h, s, v = hsv_image[y][x]
@@ -40,13 +40,14 @@ def onMouse(event, x, y, a, b):
     mouse_hsv[1] = s
     mouse_hsv[2] = v
     if event == cv.CV_EVENT_LBUTTONDOWN:
-        setHSVRange((min(h, hue[0]), max(h, hue[1])),
-                    (min(s, sat[0]), max(s, sat[1])),
-                    (min(v, val[0]), max(v, val[1])))
-    if event == cv.CV_EVENT_RBUTTONDOWN:
-        setHSVRange((max((h+90)%180-90,(hue[0]+90)%180-90,0), min((h-90)%180+90,(hue[1]-90)%180+90,180)),
-                    (min(s, sat[0]), max(s, sat[1])),
-                    (min(v, val[0]), max(v, val[1])))
+        if mode == Color.Red:
+            setHSVRange((max((h+90)%180-90,(hue[0]+90)%180-90,0), min((h-90)%180+90,(hue[1]-90)%180+90,180)),
+                        (min(s, sat[0]), max(s, sat[1])),
+                        (min(v, val[0]), max(v, val[1])))
+        else:
+            setHSVRange((min(h, hue[0]), max(h, hue[1])),
+                        (min(s, sat[0]), max(s, sat[1])),
+                        (min(v, val[0]), max(v, val[1])))
     return
 
 def resetHSV():
@@ -78,24 +79,21 @@ def saveHSV():
     if seen == False:
         settings.append(new_setting)
     
-toolWindow = "Image"
-normalWindow = "Calibration (Normal Hue)"
-inverseWindow = "Calibration (Inverse Hue)"
+imageWindow = "Image"
+calibrationWindow = "Calibration"
 hsvNames = ("Hue Min", "Hue Max", "Sat Min", "Sat Max", "Val Min", "Val Max")
 cv.CV_GUI_NORMAL = 0x00000010
-cv2.namedWindow(toolWindow, cv.CV_WINDOW_AUTOSIZE | cv.CV_GUI_NORMAL)
-cv2.namedWindow(normalWindow, cv.CV_WINDOW_AUTOSIZE | cv.CV_GUI_NORMAL)
-cv2.namedWindow(inverseWindow, cv.CV_WINDOW_AUTOSIZE | cv.CV_GUI_NORMAL)
-cv2.moveWindow(toolWindow, 30, 30)
-cv2.moveWindow(normalWindow, 400, 30)
-cv2.moveWindow(inverseWindow, 400, 320)
-cv.CreateTrackbar(hsvNames[0], toolWindow, 0, 180, setHueMin)
-cv.CreateTrackbar(hsvNames[1], toolWindow, 0, 180, setHueMax)
-cv.CreateTrackbar(hsvNames[2], toolWindow, 0, 255, setSatMin)
-cv.CreateTrackbar(hsvNames[3], toolWindow, 0, 255, setSatMax)
-cv.CreateTrackbar(hsvNames[4], toolWindow, 0, 255, setValMin)
-cv.CreateTrackbar(hsvNames[5], toolWindow, 0, 255, setValMax)
-cv.SetMouseCallback(toolWindow, onMouse)
+cv2.namedWindow(imageWindow, cv.CV_WINDOW_AUTOSIZE | cv.CV_GUI_NORMAL)
+cv2.namedWindow(calibrationWindow, cv.CV_WINDOW_AUTOSIZE | cv.CV_GUI_NORMAL)
+cv2.moveWindow(imageWindow, 30, 30)
+cv2.moveWindow(calibrationWindow, 400, 30)
+cv.CreateTrackbar(hsvNames[0], imageWindow, 0, 180, setHueMin)
+cv.CreateTrackbar(hsvNames[1], imageWindow, 0, 180, setHueMax)
+cv.CreateTrackbar(hsvNames[2], imageWindow, 0, 255, setSatMin)
+cv.CreateTrackbar(hsvNames[3], imageWindow, 0, 255, setSatMax)
+cv.CreateTrackbar(hsvNames[4], imageWindow, 0, 255, setValMin)
+cv.CreateTrackbar(hsvNames[5], imageWindow, 0, 255, setValMax)
+cv.SetMouseCallback(imageWindow, onMouse)
 
 filename = "hsv_calibration"
 settings = []
@@ -118,28 +116,34 @@ while key != 27:
         saveHSV()
     if key == 114: # R
         mode = Color.Red
+        loadHSV()
         print "RED"
     if key == 103: # G
         mode = Color.Green
+        loadHSV()
         print "GREEN"
     if key == 121: # Y
         mode = Color.Yellow
+        loadHSV()
         print "YELLOW"
     if key == 112: # P
         mode = Color.Purple
+        loadHSV()
         print "PURPLE"
     if key == 99: # C
         mode = Color.Cyan
+        loadHSV()
         print "CYAN"
     if key == 32: # Space
         resetHSV()
     vis.grab_frame()
-    cv2.imshow(toolWindow, vis.image)
+    cv2.imshow(imageWindow, vis.image)
     hsv_image = cv2.cvtColor(vis.image, cv.CV_BGR2HSV)
-    filtered_image = vis.pick_hsv(hsv_image, hue, sat, val)
-    inverse_image = vis.pick_hsv_inverse(hsv_image, hue, sat, val)
-    cv2.imshow(normalWindow, filtered_image)
-    cv2.imshow(inverseWindow, inverse_image)
+    if mode == Color.Red:
+        filtered_image = vis.pick_hsv_inverse(hsv_image, hue, sat, val)
+    else:
+        filtered_image = vis.pick_hsv(hsv_image, hue, sat, val)
+    cv2.imshow(calibrationWindow, filtered_image)
     key = cv2.waitKey(10)
 
 settings.sort()
