@@ -98,18 +98,6 @@ class Arduino(threading.Thread):
         #        character across.
         # ; = Special command mode that means "end of packet"
         output = ""
-        if self.pidResetFlag:
-            output += "P" + array.array("f", [self.pidKp, self.pidKi, self.pidKd]).tostring()
-            self.pidResetFlag = False
-        output += "E"
-        if self.pidActiveFlag:
-            if self.pidErrorFlag:
-                output += chr(1) + chr(self.pidError)
-                self.pidErrorFlag = False
-            else:
-                output += chr(2)
-        else:
-            output += chr(0)
         output += "M" + chr(len(self.motorSpeeds))
         for i in self.motorSpeeds:
             output += chr(i)
@@ -125,6 +113,18 @@ class Arduino(threading.Thread):
         output += "A" + chr(len(self.analogOutputs))
         for i in self.analogOutputs:
             output += chr(i)
+        if self.pidResetFlag:
+            output += "P" + array.array("f", [self.pidKp, self.pidKi, self.pidKd]).tostring()
+            self.pidResetFlag = False
+        output += "E"
+        if self.pidActiveFlag:
+            if self.pidErrorFlag:
+                output += chr(1) + chr(self.pidError)
+                self.pidErrorFlag = False
+            else:
+                output += chr(2)
+        else:
+            output += chr(0)
         output += ";"
         self.port.write(output)
         # print output
@@ -490,12 +490,6 @@ class PID:
         self.arduino.pidActiveFlag = False
     def reset(self, kp, ki, kd):
         """ Resets the integral and changes the constants. Constants should be floats in [0, 2.55]. """
-        # kp = clamp(kp, 0, 2.55)
-        # ki = clamp(ki, 0, 2.55)
-        # kd = clamp(kd, 0, 2.55)
-        # self.arduino.pidKp = int(math.floor(kp * 100))
-        # self.arduino.pidKi = int(math.floor(ki * 100))
-        # self.arduino.pidKd = int(math.floor(kd * 100))
         self.arduino.pidKp = kp
         self.arduino.pidKi = ki
         self.arduino.pidKd = kd

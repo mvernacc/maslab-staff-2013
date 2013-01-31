@@ -60,11 +60,12 @@ class Motor
       pinMode(directionPin, OUTPUT);
       pinMode(pwmPin, OUTPUT);
     }
-    int adjustment = 0;
-    void setSpeed(int s)
+    int _speed = 0;
+    void adjustSpeed(int a)
     {
       // Adjust the speed
-      s += adjustment;
+      _speed = _speed + a;
+      int s = _speed;
       
       // Clamp to [-126, 127]
       if (s < -126) s = -126;
@@ -75,6 +76,16 @@ class Motor
       // Set direction and pwm pins
       digitalWrite(directionPin, (s>=0)?HIGH:LOW);
       analogWrite(pwmPin, abs(s));
+    }
+    void setSpeed(int s)
+    {
+      if (pid.active) return;
+      
+      // Store the speed
+      _speed = s;
+      
+      // Set the speed
+      adjustSpeed(0);
     }
 };
 
@@ -618,9 +629,11 @@ class PIDController
     float errorProportional, errorIntegral, errorDifferential;
     unsigned long lastTime;
   public:
+    bool active;
     PIDController()
     {
       reset(0, 0, 0);
+      active = false;
     }
     void reset(float kP, float kI, float kD)
     {
@@ -632,7 +645,7 @@ class PIDController
       errorDifferential = 0;
       lastTime = millis();
     }
-    void updateError(int error)
+    float getAdjustment(int error)
     {
       unsigned long currentTime = millis();
       int dt = currentTime - lastTime;
@@ -640,18 +653,13 @@ class PIDController
       errorIntegral += error * dt;
       errorProportional = error;
       lastTime = currentTime;
-    }
-    void clearAdjustment()
-    {
       float adjustment = kProportional * errorProportional + kIntegral * errorIntegral + kDifferential * errorDifferential;
-      motors[0]->adjustment = 0;
-      motors[1]->adjustment = 0;
+      return adjustment;
     }
-    void updateAdjustment()
+    void updateSpeeds(float a)
     {
-      float adjustment = kProportional * errorProportional + kIntegral * errorIntegral + kDifferential * errorDifferential;
-      motors[0]->adjustment = adjustment;
-      motors[1]->adjustment = -adjustment;
+      motors[0]->adjustSpeed(a);
+      motors[1]->adjustSpeed(-a);
     }
 };
 
@@ -685,24 +693,28 @@ void pidAdjust()
     // Inactive: no error
     case 0:
     {
-      pid.clearAdjustment();
+      pid.active = false;
+      // pid.clearAdjustment();
       break;
     }
     // Active: new error
     case 1:
     {
+      pid.active = true;
       int e = ((int) serialRead());
       // Make e signed
       if (e > 127)
       {
         e -= 256;
       }
-      pid.updateError(e);
-      pid.updateAdjustment();
+      float adjustment = pid.getAdjustment(e);
+      pid.updateSpeeds(adjustment);
       break;
     }
     // Active: old error
-    case 2:;
+    case 2:
+      pid.active = true;
+      pid.updateSpeeds(0);
       break;
   }
 }
