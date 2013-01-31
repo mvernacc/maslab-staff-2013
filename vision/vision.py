@@ -175,6 +175,9 @@ class Vision(threading.Thread):
             objects[Feature.Tower] = self._detectObjectMidpoint(Color.Purple)
         return detections
 
+    def getDetections(self):
+        return self.detections.copy()
+
     def run(self):
         self.running = True
         while self.running:

@@ -18,16 +18,16 @@ class Robot(threading.Thread):
         self.vision = Vision()
         self.vision.color = Color.Red
         self.vision.features = Feature.Ball
-        self.time = Timer()
-        self.servoBridge = arduino.Servo(self.ard, 5)
-        self.servoGate = arduino.Servo(self.ard, 4)
+        self.time = Timer(self)
+        self.servoBridge = arduino.Servo(self.ard, 6)
+        self.servoGate = arduino.Servo(self.ard, 3)
         # self.bridgeBump = arduino.DigitalInput(self.ard, 27)
 
         # Properties for match
         self.ready = False
         self.scoring = False
-        self.buttoned = False
-        self.deployed = False
+        self.buttoned = False # Button has been pushed
+        self.deployed = False # Bridge has been deployed
         self.map = {}
         self.tower = []
         self.wall = []
@@ -38,9 +38,9 @@ class Robot(threading.Thread):
         while self.ard.portOpened == False:
             time.sleep(0.05)
 
-        self.motors.start()
-        self.servoGate.setAngle(20)
-        # self.servoBridge.setAngle(90)
+        # self.motors.start()
+        self.servoGate.setAngle(45)
+        self.servoBridge.setAngle(5)
         self.bumpers.start()
         self.ir.start()
         self.vision.start()
@@ -49,12 +49,16 @@ class Robot(threading.Thread):
 
     def stop(self):
         self.pid.stop()
-        self.motors.stop()
+        # self.motors.stop()
+        self.servoGate.setAngle(45)
+        self.servoBridge.setAngle(5)
         self.bumpers.stop()
         self.ir.stop()
         self.vision.stop()
         time.sleep(1)
         self.ard.stop()
+        
+        self.ready = False
 
     def reverse(self, bumped):
         speed = 80
@@ -162,15 +166,17 @@ class Motors(threading.Thread):
         threading.Thread.__init__(self)
 	""" Arduino must have left motor as 0th motor and right motor as 1st motor for PID. """
         # Pin format: Current, Direction, PWM
-        self.left = arduino.Motor(ard, 12, 7, 6)
-        self.right = arduino.Motor(ard, 15, 13, 12)
-        self.roller = arduino.Motor(ard, 14, 11, 10)
-        self.tower = arduino.Motor(ard, 13, 9, 8)  
+        self.left = arduino.Motor(ard, 0, 43, 9)
+        self.right = arduino.Motor(ard, 15, 37, 12)
+        self.roller = arduino.Motor(ard, 14, 39, 10)
+        self.tower = arduino.Motor(ard, 13, 41, 11)        
 
+        self.left.setSpeed(0)
+        self.right.setSpeed(0)
         self.roller.setSpeed(0)
         self.tower.setSpeed(0)
-        
-        self.currentLeft = arduino.AnalogInput(ard, 12)
+
+        self.currentLeft = arduino.AnalogInput(ard, 0)
         self.currentRight = arduino.AnalogInput(ard, 15)
         self.currentRoller = arduino.AnalogInput(ard, 14)
         self.currentTower = arduino.AnalogInput(ard, 13)
@@ -181,8 +187,11 @@ class Motors(threading.Thread):
         self.stallTower = False
 
     def run(self):
+        while self.currentLeft.getValue() == None or self.currentRight.getValue() == None or self.currentRoller.getValue() == None or self.currentTower.getValue() == None:
+            time.sleep(0.1)
         self.running = True
         while self.running:
+            print "Left: {0:4.0f}   Right: {1:4.0f}   Roller: {2:4.0f}   Tower: {3:4.0f}".format(self.currentLeft.getValue(), self.currentRight.getValue(), self.currentRoller.getValue(), self.currentTower.getValue())
             if self.currentLeft.getValue() > 800:
                 print "Stalling left"
                 self.stallLeft = True
@@ -191,15 +200,24 @@ class Motors(threading.Thread):
                 print "Stalling right"
                 self.stallRight = True
                 self.right.setSpeed(0)
-            if self.currentRoller.getValue() > 700:
+            if self.currentRoller.getValue() > 300:
                 print "Stalling roller"
                 self.stallRoller = True
                 self.roller.setSpeed(0)
+                time.sleep(1)
+                self.roller.setSpeed(-63)
+                time.sleep(1)
+                self.roller.setSpeed(0)
+                time.sleep(1)
+                self.roller.setSpeed(63)
+                time.sleep(1)
+                self.roller.setSpeed(126)
+                self.stallRoller = False
             if self.currentTower.getValue() > 700:
                 print "Stalling tower"
                 self.stallTower = True
                 self.tower.setSpeed(0)
-            time.sleep(0.5)
+            time.sleep(0.1)
 
     def stop(self):
         self.running = False
@@ -209,12 +227,23 @@ class Motors(threading.Thread):
         self.tower.setSpeed(0)
 
 
-class Timer:
-    def __init__(self):
-        self.marker = time.time()
+class Timer(threading.Thread):
+    def __init__(self, robot):
+        threading.Thread.__init__(self)
+        self.marker = None
+        self.robot = robot
     def reset(self):
         self.marker = time.time()
+    def run(self):
+        self.marker = time.time()
+        while self.elapsed() < 120:
+            time.sleep(5)
+        self.robot.scoring = True
+        while self.elapsed() < 180:
+            time.sleep(5)
+        self.robot.stop()
     def elapsed(self):
+        if self.marker == None: return 0
         return time.time() - self.marker
     def string(self):
         t = self.elapsed()
