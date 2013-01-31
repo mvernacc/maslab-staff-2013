@@ -45,20 +45,6 @@ class Robot(threading.Thread):
         self.ir.start()
         self.vision.start()
 
-        print "Choose color: right = RED, left = GREEN"
-        while True:
-            if self.bumpers.right.getValue() == True:
-                # Right bump sensor
-                self.color = Color.Red
-                print "Playing for RED..."
-                break
-            elif self.bumpers.left.getValue() == True:
-                # Left bump sensor
-                self.color = Color.Green
-                print "Playing for GREEN..."
-                break
-            time.sleep(0.05)
-
         self.ready = True
 
     def stop(self):

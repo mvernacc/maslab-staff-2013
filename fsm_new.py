@@ -31,6 +31,21 @@ class FiniteStateMachine:
         self.robot.start()
         while self.robot.ready == False:
             time.sleep(0.1)
+
+        print "Choose color: right = RED, left = GREEN"
+        while True:
+            if self.robot.bumpers.right.getValue() == True:
+                # Right bump sensor
+                self.robot.vision.color = Color.Red
+                print "Playing for RED..."
+                break
+            elif self.robot.bumpers.left.getValue() == True:
+                # Left bump sensor
+                self.robot.vision.color = Color.Green
+                print "Playing for GREEN..."
+                break
+            time.sleep(0.1)
+
         # Start the roller and tower motors running here
         # These stay constantly running for the entire duration of the match
         #self.robot.motors.roller.setSpeed(20)
