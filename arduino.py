@@ -98,6 +98,18 @@ class Arduino(threading.Thread):
         #        character across.
         # ; = Special command mode that means "end of packet"
         output = ""
+        if self.pidResetFlag:
+            output += "P" + array.array("f", [self.pidKp, self.pidKi, self.pidKd]).tostring()
+            self.pidResetFlag = False
+        output += "E"
+        if self.pidActiveFlag:
+            if self.pidErrorFlag:
+                output += chr(1) + chr(self.pidError)
+                self.pidErrorFlag = False
+            else:
+                output += chr(2)
+        else:
+            output += chr(0)
         output += "M" + chr(len(self.motorSpeeds))
         for i in self.motorSpeeds:
             output += chr(i)
@@ -113,18 +125,6 @@ class Arduino(threading.Thread):
         output += "A" + chr(len(self.analogOutputs))
         for i in self.analogOutputs:
             output += chr(i)
-        if self.pidResetFlag:
-            output += "P" + array.array("f", [self.pidKp, self.pidKi, self.pidKd]).tostring()
-            self.pidResetFlag = False
-        output += "E"
-        if self.pidActiveFlag:
-            if self.pidErrorFlag:
-                output += chr(1) + chr(self.pidError)
-                self.pidErrorFlag = False
-            else:
-                output += chr(2)
-        else:
-            output += chr(0)
         output += ";"
         self.port.write(output)
         # print output

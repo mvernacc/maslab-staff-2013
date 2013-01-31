@@ -44,8 +44,6 @@ class Stepper
     }
 };
 
-bool pidActive = false;
-
 // Define a class that manages a motor (through the
 // Dagu 4-channel motor controller board)
 class Motor
@@ -62,12 +60,11 @@ class Motor
       pinMode(directionPin, OUTPUT);
       pinMode(pwmPin, OUTPUT);
     }
-    int _speed = 0;
-    void adjustSpeed(int a)
+    int adjustment = 0;
+    void setSpeed(int s)
     {
       // Adjust the speed
-      _speed = _speed + a;
-      int s = _speed;
+      s += adjustment;
       
       // Clamp to [-126, 127]
       if (s < -126) s = -126;
@@ -78,16 +75,6 @@ class Motor
       // Set direction and pwm pins
       digitalWrite(directionPin, (s>=0)?HIGH:LOW);
       analogWrite(pwmPin, abs(s));
-    }
-    void setSpeed(int s)
-    {
-      if (pidActive) return;
-      
-      // Store the speed
-      _speed = s;
-      
-      // Set the speed
-      adjustSpeed(0);
     }
 };
 
@@ -128,6 +115,8 @@ int numDigitalOutput = 0;
 int numAnalogInput = 0;
 int numAnalogOutput = 0;
 int numImus = 0;
+
+int resetCounter = 0;
 
 
 // Define a serial read that actually blocks
@@ -629,11 +618,9 @@ class PIDController
     float errorProportional, errorIntegral, errorDifferential;
     unsigned long lastTime;
   public:
-    bool active;
     PIDController()
     {
       reset(0, 0, 0);
-      active = false;
     }
     void reset(float kP, float kI, float kD)
     {
@@ -645,7 +632,7 @@ class PIDController
       errorDifferential = 0;
       lastTime = millis();
     }
-    float getAdjustment(int error)
+    void updateError(int error)
     {
       unsigned long currentTime = millis();
       int dt = currentTime - lastTime;
@@ -653,13 +640,18 @@ class PIDController
       errorIntegral += error * dt;
       errorProportional = error;
       lastTime = currentTime;
-      float adjustment = kProportional * errorProportional + kIntegral * errorIntegral + kDifferential * errorDifferential;
-      return adjustment;
     }
-    void updateSpeeds(float a)
+    void clearAdjustment()
     {
-      motors[0]->adjustSpeed(a);
-      motors[1]->adjustSpeed(-a);
+      float adjustment = kProportional * errorProportional + kIntegral * errorIntegral + kDifferential * errorDifferential;
+      motors[0]->adjustment = 0;
+      motors[1]->adjustment = 0;
+    }
+    void updateAdjustment()
+    {
+      float adjustment = kProportional * errorProportional + kIntegral * errorIntegral + kDifferential * errorDifferential;
+      motors[0]->adjustment = adjustment;
+      motors[1]->adjustment = -adjustment;
     }
 };
 
@@ -693,27 +685,24 @@ void pidAdjust()
     // Inactive: no error
     case 0:
     {
-      pidActive = false;
+      pid.clearAdjustment();
       break;
     }
     // Active: new error
     case 1:
     {
-      pidActive = true;
       int e = ((int) serialRead());
       // Make e signed
       if (e > 127)
       {
         e -= 256;
       }
-      float adjustment = pid.getAdjustment(e);
-      pid.updateSpeeds(adjustment);
+      pid.updateError(e);
+      pid.updateAdjustment();
       break;
     }
     // Active: old error
-    case 2:
-      pidActive = true;
-      pid.updateSpeeds(0);
+    case 2:;
       break;
   }
 }
