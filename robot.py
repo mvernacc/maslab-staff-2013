@@ -4,23 +4,13 @@ import time
 import ir_dist
 from vision.vision import Vision, Color, Feature
 
-import cv2
-import cv
-import sys, getopt
-import ir_dist
-
 class Robot(threading.Thread):
     
     def __init__(self):
         threading.Thread.__init__(self)
-        self.ready = False
-        self.scoring = False
 
-        # Flags used in single thread FSM version
-        self.buttoned = False
-        self.deployed = False
-
-        self.ard = arduino.Arduino() # Create the Arduino object
+        # Arduino and sensor properties
+        self.ard = arduino.Arduino()
         self.pid = arduino.PID(self.ard)
         self.motors = Motors(self.ard)
         self.bumpers = Bumpers(self.ard)
@@ -29,12 +19,15 @@ class Robot(threading.Thread):
         self.vision.color = Color.Red
         self.vision.features = Feature.Ball
         self.time = Timer()
-        
         self.servoBridge = arduino.Servo(self.ard, 5)
         self.servoGate = arduino.Servo(self.ard, 4)
         self.bridgeBump = arduino.DigitalInput(self.ard, 27)
-        self.go = arduino.DigitalInput(self.ard, 30)
 
+        # Properties for match
+        self.ready = False
+        self.scoring = False
+        self.buttoned = False
+        self.deployed = False
         self.map = {}
         self.tower = []
         self.wall = []
@@ -43,31 +36,28 @@ class Robot(threading.Thread):
     def run(self):
         self.ard.start()
         while self.ard.portOpened == False:
-            time.sleep(0.1)
+            time.sleep(0.05)
 
         self.motors.start()
-        self.motors.tower.setSpeed(0)
-        self.motors.roller.setSpeed(0)
         self.servoGate.setAngle(20)
-        # self.servoBridge.setAngle(90)
+        self.servoBridge.setAngle(90)
         self.bumpers.start()
         self.ir.start()
         self.vision.start()
 
-        print "Choose color: Right = RED, Left = GREEN"
+        print "Choose color: right = RED, left = GREEN"
         while True:
-            # print self.bumpers.right.getValue(), self.bumpers.left.getValue()
             if self.bumpers.right.getValue() == True:
                 # Right bump sensor
                 self.color = Color.Red
-                print "RED"
+                print "Playing for RED..."
                 break
             elif self.bumpers.left.getValue() == True:
                 # Left bump sensor
                 self.color = Color.Green
-                print "GREEN"
+                print "Playing for GREEN..."
                 break
-            time.sleep(0.01)
+            time.sleep(0.05)
 
         self.ready = True
 
@@ -80,26 +70,28 @@ class Robot(threading.Thread):
         time.sleep(1)
         self.ard.stop()
 
-    def reverse(self, bump):
+    def reverse(self, bumped):
         speed = 80
-        bumped = bump
+        # Reverse for 2 seconds
         self.motors.right.setSpeed(-speed)
         self.motors.left.setSpeed(-speed)
-        time.sleep(1)
-        if bumped == (True, False) or bumped == (True, True):
-            # Left bump sensor hit, turning scheme
+        time.sleep(2)
+        # Rotate for 1 second
+        if bumped[0] == True:
+            # Left bump sensor hit
             self.motors.right.setSpeed(-speed)
             self.motors.left.setSpeed(speed)
-        elif bumped == (False, True):
+        elif bumped[1] == True:
             # Right bump sensor hit
             self.motors.right.setSpeed(speed)
             self.motors.left.setSpeed(-speed)
-        time.sleep(0.5)
-            
-    # can we return to the state we came from?
-    # This will require us to redo the infrastructure of our code,
-    # or scan state can fix it...
-
+        time.sleep(1)
+        # Move forward for 1 second
+        self.motors.right.setSpeed(speed)
+        self.motors.left.setSpeed(speed)
+        time.sleep(1)
+        self.motors.right.setSpeed(0)
+        self.motors.left.setSpeed(0)
 
     def getFarthestPoint(self):
         startAngle = ard.getHeading()
@@ -125,16 +117,16 @@ class Bumpers(threading.Thread):
     def __init__(self, ard):
         threading.Thread.__init__(self)
 
-        self.right = arduino.DigitalInput(ard, 42) # Digital input on pin 42
-        self.left = arduino.DigitalInput(ard, 36) # Digital input on pin 36
-        
+        self.right = arduino.DigitalInput(ard, 42)
+        self.left = arduino.DigitalInput(ard, 36)
+
         self.bumped = (False, False) # (left, right)
 
     def run(self):
         self.running = True
         while self.running:
             self.bumped = (self.left.getValue(), self.right.getValue())
-            time.sleep(0.01)
+            time.sleep(0.05)
 
     def stop(self):
             self.running = False
@@ -149,13 +141,11 @@ class IR(threading.Thread):
         self.nirRightValue = None
 
         self.nirRight = ir_dist.IR_Dist(ard, 5, 'rightNIR')
-        self.nirLeft = ir_dist.IR_Dist(ard, 4, 'leftNIR')        
-        #self.firRight = arduino.AnalogInput(ard, 6)
+        self.nirLeft = ir_dist.IR_Dist(ard, 4, 'leftNIR')
         self.firLeft = ir_dist.IR_Dist(ard, 7, 'leftFIR')
 
         self.nirLeft.load()
         self.nirRight.load()
-        # self.firRight.load()
         self.firLeft.load()
 
     def run(self):
@@ -166,20 +156,19 @@ class IR(threading.Thread):
             self.nirLeftValue = self.nirLeft.getDist()
             self.nirRightValue = self.nirRight.getDist()
             self.firLeftValue = self.firLeft.getDist()
-            # print 'IR readings: left = ' + str(self.nirLeftVal) + ' cm, right = ' + str(self.nirRightVal) + ' cm'
             if self.firLeftValue < 20:
                 self.wall = 'front'
-       #     elif nirLeftValue < 20 and nirLeftValue > 20:
-       #         self.wall = 'right'
-       #     elif nirLeftValue > 20 and nirRightValue < 20:
-       #         self.wall = 'left'
+            # elif self.nirLeftValue < 20 and self.nirRightValue > 20:
+            #     self.wall = 'right'
+            # elif self.nirLeftValue > 20 and self.nirRightValue < 20:
+            #     self.wall = 'left'
             else:
                 self.wall = 'none'
-            time.sleep(0.01)
+            time.sleep(0.05)
 
     def stop(self):
         self.running = False
-        
+
 
 class Motors(threading.Thread):
 
@@ -224,7 +213,7 @@ class Motors(threading.Thread):
                 print "Stalling tower"
                 self.stallTower = True
                 self.tower.setSpeed(0)
-            time.sleep(0.1)
+            time.sleep(0.5)
 
     def stop(self):
         self.running = False
@@ -233,8 +222,6 @@ class Motors(threading.Thread):
         self.roller.setSpeed(0)
         self.tower.setSpeed(0)
 
-
-import time
 
 class Timer:
     def __init__(self):
