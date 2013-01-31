@@ -111,24 +111,22 @@ class Robot(threading.Thread):
             firData.append((self.ir.firRight.getValues(),
                             self.ir.firLeft.getValues(),
                             ard.getHeading()))
-        # find maximimum firRight or firLeft value
-#        direction = max(firData, lambda x: max(x[0], x[1]))
-#        if direction[0] > direction[1]:  # right sensor yields farthest distance
-#            self.robot.setDirection(direction[2]-45)
-#        else:
-            # left sensor yields farthest distance
- #           self.robot.setDirection(direction[2]+45)
-            # or return direction
+        # # find maximimum firRight or firLeft value
+        # direction = max(firData, lambda x: max(x[0], x[1]))
+        # if direction[0] > direction[1]:  # right sensor yields farthest distance
+        #     self.robot.setDirection(direction[2]-45)
+        # else:
+        #     # left sensor yields farthest distance
+        #     self.robot.setDirection(direction[2]+45)
+        #     # or return direction
 
 class Bumpers(threading.Thread):
 
     def __init__(self, ard):
         threading.Thread.__init__(self)
 
-        self.right = arduino.DigitalInput(ard, 22) # Digital input on pin 22
-        self.left = arduino.DigitalInput(ard, 23) # Digital input on pin 23
-        # self.bumpBackRight = arduino.DigitalInput(ard, 26)
-        # self.bumpBackLeft = arduino.DigitalInput(ard, 29)
+        self.right = arduino.DigitalInput(ard, 42) # Digital input on pin 42
+        self.left = arduino.DigitalInput(ard, 36) # Digital input on pin 36
         
         self.bumped = (False, False) # (left, right)
 
@@ -189,18 +187,18 @@ class Motors(threading.Thread):
         threading.Thread.__init__(self)
 	""" Arduino must have left motor as 0th motor and right motor as 1st motor for PID. """
         # Pin format: Current, Direction, PWM
-        self.left = arduino.Motor(ard, 3, 7, 6)
-        self.right = arduino.Motor(ard, 0, 13, 12)
-        self.roller = arduino.Motor(ard, 1, 5, 4)
-        self.tower = arduino.Motor(ard, 2, 9, 8)
+        self.left = arduino.Motor(ard, 12, 7, 6)
+        self.right = arduino.Motor(ard, 15, 13, 12)
+        self.roller = arduino.Motor(ard, 14, 5, 4)
+        self.tower = arduino.Motor(ard, 13, 9, 8)
 
         self.roller.setSpeed(0)
         self.tower.setSpeed(0)
         
-        self.currentLeft = arduino.AnalogInput(ard, 3)
-        self.currentRight = arduino.AnalogInput(ard, 0)
-        self.currentRoller = arduino.AnalogInput(ard, 1)
-        self.currentTower = arduino.AnalogInput(ard, 2)
+        self.currentLeft = arduino.AnalogInput(ard, 12)
+        self.currentRight = arduino.AnalogInput(ard, 15)
+        self.currentRoller = arduino.AnalogInput(ard, 14)
+        self.currentTower = arduino.AnalogInput(ard, 13)
 
         self.stallLeft = False
         self.stallRight = False
